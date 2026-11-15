@@ -43,7 +43,7 @@ That's fine for a live look, but it doesn't hold up after the fact:
 
 MBPM does that join live, every sample, and logs by pool name.
 
-**History:** `bpm` ("**B**etter app**P**ool **M**onitor"), a PowerShell script that polled counters and WMI, skewed the numbers under load. `ebpm` ("**E**ven **B**etter..."), in C#, sampled with a data collector set and merged offline. `mbpm` ("Much Better.") reads PDH directly with IIS's pool names in the same sample, and logs per pool as it goes.
+**History:** `bpm` ("**B**etter app**P**ool **M**onitor"), a PowerShell script that polled counters and WMI, skewed the numbers under load. `ebpm` ("**E**ven **B**etter..."), in C#, sampled with a data collector set and merged offline. `mbpm` ("**M**uch **B**etter.") reads PDH directly with IIS's pool names in the same sample, and logs per pool as it goes.
 
 ## Quick start
 
