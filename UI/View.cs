@@ -584,7 +584,7 @@ namespace S7G.mbpm.UI
             }
             text.Add("   " + Strings.HelpThemesFontNote);
             text.Add(string.Empty);
-            text.Add(" " + Brand.Copyright);
+            text.Add(" " + Brand.Copyright + "  ·  " + Brand.License);
 
             foreach (string raw in text)
             {
@@ -623,10 +623,11 @@ namespace S7G.mbpm.UI
                 Brand.Version,
                 "",
                 Brand.Copyright,
+                Brand.License,
                 "",
                 Strings.HelpAboutDescription,
             };
-            string[] styles = { Ansi.Bold + Ansi.Cyan, Ansi.Dim, null, null, null, null };
+            string[] styles = { Ansi.Bold + Ansi.Cyan, Ansi.Dim, null, null, Ansi.Dim, null, null };
 
             var lines = new List<LineBuilder>();
             int logoRows = HelpLogoSize / 2;

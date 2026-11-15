@@ -27,6 +27,7 @@ namespace S7G.mbpm.UI
             text.Add(Text(Brand.Version, Ansi.Dim));
             text.Add(Text(string.Empty, null));
             text.Add(Text(Fix(Brand.Copyright, ascii), Ansi.Dim));
+            text.Add(Text(Brand.License, Ansi.Dim));
             text.Add(Text(string.Empty, null));
             text.Add(Text(status ?? string.Empty, Ansi.Cyan));
 

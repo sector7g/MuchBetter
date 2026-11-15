@@ -1,6 +1,7 @@
 MBPM  ·  A Much Better appPool Monitor  (v0.1)
 ==============================================
 © 2017-2026 Sector 7G Consulting LLC
+Licensed under the MIT License (see LICENSE)
 
 Live CPU and memory per IIS app pool, htop-style, logged as a PerfMon log. Monitors the
 machine it runs on. Run elevated, in Windows Terminal or the classic console.
