@@ -1,0 +1,11 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# MBPM session logs, if --logdir points inside the repo
+*.csv

@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A9294385-BC22-42DA-A0BF-E5210270F89C}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>S7G.mbpm</RootNamespace>
+    <AssemblyName>mbpm</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Brand.cs" />
+    <Compile Include="Options.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Strings.cs" />
+    <Compile Include="Core\Correlator.cs" />
+    <Compile Include="Core\Model.cs" />
+    <Compile Include="Core\Timestamps.cs" />
+    <Compile Include="Core\WorkerTracker.cs" />
+    <Compile Include="Collection\Collector.cs" />
+    <Compile Include="Collection\PdhQuery.cs" />
+    <Compile Include="Collection\PoolMapper.cs" />
+    <Compile Include="Collection\ProcessOwner.cs" />
+
+    <Compile Include="Collection\Sampler.cs" />
+    <Compile Include="Logging\Exporter.cs" />
+    <Compile Include="Logging\LiveExport.cs" />
+    <Compile Include="Logging\SessionLog.cs" />
+    <Compile Include="UI\App.cs" />
+    <Compile Include="UI\Logo.cs" />
+    <Compile Include="UI\Splash.cs" />
+    <Compile Include="UI\Terminal.cs" />
+    <Compile Include="UI\Theme.cs" />
+    <Compile Include="UI\View.cs" />
+    <Compile Include="Mock\MockSource.cs" />
+    <Compile Include="Mock\MockWorld.cs" />
+    <Compile Include="Interop\NativeMethods.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Strings.resx">
+      <LogicalName>S7G.mbpm.Strings.resources</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="readme.txt" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

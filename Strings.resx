@@ -1,0 +1,565 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Usage" xml:space="preserve">
+    <value>Live CPU and memory per IIS app pool, htop-style.
+
+Usage: mbpm [options]
+       mbpm export &lt;session folder&gt; [--from &lt;time&gt;] [--to &lt;time&gt;]
+
+  -c, --cores &lt;n&gt;         Logical cores (default: counted from the counters)
+  -i, --interval &lt;sec&gt;    Sample interval in seconds (default: 1; F4 changes it while running)
+  -p, --poll &lt;sec&gt;        How often to refresh pool names from WMI when needed (default: 5)
+  -l, --logdir &lt;folder&gt;   Root folder for session logs (default: %LOCALAPPDATA%\Sector 7G\mbpm)
+      --theme &lt;name&gt;      Start with a theme: HTOP, Redmond, Metro Night, Monad, Sector 7G,
+                          Lighthouse (F3 or T cycles them)
+      --mock [cores=&lt;n&gt;][,pools=&lt;n&gt;]
+                          Simulate an IIS server instead of reading counters, to try MBPM out
+                          without IIS: 1-64 cores, 1-100 pools (default 64 and 100). The
+                          session is labeled MOCK
+      --ascii             Use plain ASCII for bars, graphs and symbols
+      --no-alt            Draw in the normal console buffer instead of a full-screen view
+      --no-splash         Skip the startup screen
+      --no-export         Don't write the PerfMon export; write the raw logs instead
+      --keep-raw          Also write the raw logs (samples.csv, machine.csv), to re-slice later
+      --debug-logs        Also write pid_map.csv (pool names and PIDs per sample)
+  -h, --help              Show this help
+
+Keys: arrows/PgUp/PgDn/Home/End select, F5 or Space pause, F6 or S sort, F7 or C CPU /
+Cores card, F8 or E where the logs are, F4 or I interval, F3 or T theme, F1 or H help, F10 or Q quit.
+
+Monitors this machine only. Counters are read with PDH; nothing is created or changed. Each run uses a
+session folder, &lt;logdir&gt;\&lt;machine&gt;\&lt;yyyyMMdd-HHmmss&gt;, logged live as PerfMon logs a data
+collector set: one row per sample, flushed every second, so the files can be opened at any time
+and a crash loses nothing already written. A session with no samples is removed on exit.
+
+Export (written live; 'mbpm export' rebuilds it from raw logs): mbpm_export_perfmon.csv holds
+the per-pool data in PerfMon's CSV log format. Open it in Performance Monitor (View Log Data, Ctrl+L, Log
+files, Add) and pick the 'Much Better App Pool' and 'Much Better Machine' counters; it can be treated like
+any PerfMon CSV log (relog to .blg, or tools that ingest PerfMon CSV, e.g. Splunk).
+mbpm_export_cpu.csv is a plain CSV for Excel; export_info.txt says how each column is computed.
+A pool that first appears mid-session gets its columns by a one-time rewrite of the files (a
+CSV can't gain columns otherwise). 'mbpm export' with --from / --to ('yyyy-MM-dd HH:mm[:ss]' or
+'HH:mm[:ss]', on the session's first day) needs the raw logs, so use --keep-raw for sessions you
+want to re-slice. Otherwise relog can cut the PerfMon export by time: relog mbpm_export_perfmon.csv -b &lt;begin&gt; -e &lt;end&gt; -f csv -o part.csv
+
+Pool names come from IIS's own W3SVC_W3WP counters, in the same sample as the CPU and memory
+figures; WMI (worker command lines) is used only for workers those counters don't cover yet.
+
+Rights: run elevated, so WMI can read every worker's command line when it's needed.</value>
+    <comment>Shown by mbpm -h, after the product name and legal lines.</comment>
+  </data>
+  <data name="ErrUnknownOption" xml:space="preserve">
+    <value>Unknown option '{0}'.</value>
+    <comment>{0} = the option</comment>
+  </data>
+  <data name="ErrOptionNeedsValue" xml:space="preserve">
+    <value>Option '{0}' needs a value.</value>
+    <comment>{0} = the option</comment>
+  </data>
+  <data name="ErrOptionNeedsNumber" xml:space="preserve">
+    <value>Option '{0}' needs a positive whole number, not '{1}'.</value>
+    <comment>{0} = option, {1} = value given</comment>
+  </data>
+  <data name="ErrExportNeedsFolder" xml:space="preserve">
+    <value>export needs a session folder.</value>
+  </data>
+  <data name="ErrFromToOnlyExport" xml:space="preserve">
+    <value>--from and --to only apply to 'mbpm export'.</value>
+  </data>
+  <data name="ErrMockSetting" xml:space="preserve">
+    <value>Unknown --mock setting '{0}'. Use cores=&lt;1-{1}&gt; and/or pools=&lt;1-{2}&gt;, e.g. --mock cores=8,pools=12.</value>
+    <comment>{0} = setting given, {1} max cores, {2} max pools</comment>
+  </data>
+  <data name="ErrMockRange" xml:space="preserve">
+    <value>--mock {0} must be a whole number from 1 to {1}, not '{2}'.</value>
+    <comment>{0} = cores or pools, {1} = maximum, {2} = value given</comment>
+  </data>
+  <data name="ErrUnknownTheme" xml:space="preserve">
+    <value>Unknown theme '{0}'. Themes: {1}</value>
+    <comment>{0} = name given, {1} = list</comment>
+  </data>
+  <data name="MsgVtUnsupported" xml:space="preserve">
+    <value>This console doesn't support VT sequences (Windows 10 or later is needed). Try Windows Terminal, and don't redirect the output.</value>
+  </data>
+  <data name="SplashConnecting" xml:space="preserve">
+    <value>Connecting to {0}…</value>
+    <comment>{0} = machine</comment>
+  </data>
+  <data name="SplashConnected" xml:space="preserve">
+    <value>Connected. Press any key to continue.</value>
+  </data>
+  <data name="MsgStartupFailed" xml:space="preserve">
+    <value>Startup failed: {0}</value>
+    <comment>{0} = error message</comment>
+  </data>
+  <data name="MsgStoppedError" xml:space="preserve">
+    <value>MBPM stopped: {0}</value>
+    <comment>{0} = error</comment>
+  </data>
+  <data name="MsgStopped" xml:space="preserve">
+    <value>MBPM stopped. Logs: {0}</value>
+    <comment>{0} = session folder</comment>
+  </data>
+  <data name="MsgCleanupFailed" xml:space="preserve">
+    <value>Cleanup failed: {0}</value>
+  </data>
+  <data name="MsgExportSkipped" xml:space="preserve">
+    <value>No export (--no-export); raw logs in {0}. Build it with: mbpm export "{0}"</value>
+  </data>
+  <data name="MsgExportFailed" xml:space="preserve">
+    <value>Export failed: {0}</value>
+  </data>
+  <data name="MsgExportRetry" xml:space="preserve">
+    <value>Raw logs kept in {0}; retry with: mbpm export "{0}"</value>
+  </data>
+  <data name="MsgNoSamplesRemoved" xml:space="preserve">
+    <value>No samples were collected; the session folder was removed.</value>
+  </data>
+  <data name="MsgEmptyFolderRemoveFailed" xml:space="preserve">
+    <value>Couldn't remove the empty session folder: {0}</value>
+  </data>
+  <data name="MsgRawKept" xml:space="preserve">
+    <value>Raw logs kept (--keep-raw).</value>
+  </data>
+  <data name="MsgExported" xml:space="preserve">
+    <value>Logged {0} samples, {1} pools:</value>
+    <comment>{0} = samples, {1} = pools</comment>
+  </data>
+  <data name="MsgLiveExportStopped" xml:space="preserve">
+    <value>The live export stopped ({0}); raw logs were written from then on.</value>
+    <comment>{0} = error</comment>
+  </data>
+  <data name="MsgExportPerfmonHint" xml:space="preserve">
+    <value>(Performance Monitor: View Log Data &gt; Log files &gt; Add)</value>
+  </data>
+  <data name="SortCpu" xml:space="preserve">
+    <value>CPU ▼</value>
+  </data>
+  <data name="SortPool" xml:space="preserve">
+    <value>APP POOL ▲</value>
+  </data>
+  <data name="SortCommit" xml:space="preserve">
+    <value>Commit ▼</value>
+  </data>
+  <data name="SortUptime" xml:space="preserve">
+    <value>UPTIME ▲ (newest first)</value>
+  </data>
+  <data name="SourceLocal" xml:space="preserve">
+    <value>PDH local</value>
+  </data>
+  <data name="SourceMock" xml:space="preserve">
+    <value>simulated</value>
+  </data>
+  <data name="TitleMock" xml:space="preserve">
+    <value>MOCK</value>
+  </data>
+  <data name="StatusHidden" xml:space="preserve">
+    <value>{0} {1} process(es) hidden from WMI: run elevated.</value>
+    <comment>{0} = count, {1} = process name</comment>
+  </data>
+  <data name="StatusPoolNames" xml:space="preserve">
+    <value>Pool names (WMI): {0}</value>
+    <comment>{0} = error</comment>
+  </data>
+  <data name="StatusSample" xml:space="preserve">
+    <value>Sample: {0}</value>
+    <comment>{0} = error</comment>
+  </data>
+  <data name="StatusNotResponding" xml:space="preserve">
+    <value>{0} not responding ({1} s)…</value>
+    <comment>{0} = machine, {1} = seconds since the last sample</comment>
+  </data>
+  <data name="StatusReconnecting" xml:space="preserve">
+    <value>{0}: no data for {1} s, reconnecting every 30 s… {2}</value>
+    <comment>{0} = machine, {1} = seconds since the last sample, {2} = last error</comment>
+  </data>
+  <data name="NoticeTheme" xml:space="preserve">
+    <value>Theme: {0} - {1}</value>
+    <comment>{0} name, {1} description</comment>
+  </data>
+  <data name="NoticeThemeFont" xml:space="preserve">
+    <value>Theme: {0} - {1}  ·  font {2} {3}</value>
+    <comment>{0} name, {1} description, {2} font, {3} size</comment>
+  </data>
+  <data name="NoticeThemeNoFont" xml:space="preserve">
+    <value>Theme: {0} - {1}  ·  colors only: Windows Terminal keeps fonts in its own settings</value>
+    <comment>{0} name, {1} description</comment>
+  </data>
+  <data name="NoticeThemeFontMissing" xml:space="preserve">
+    <value>Theme: {0} - {1}  ·  font {2} isn't installed, colors only</value>
+    <comment>{0} name, {1} description, {2} font</comment>
+  </data>
+  <data name="NoticeExported" xml:space="preserve">
+    <value>Exported {0} samples, {1} pools: {2}  (open it in PerfMon: View Log Data)</value>
+    <comment>{0} samples, {1} pools, {2} file</comment>
+  </data>
+  <data name="NoticeExportFailed" xml:space="preserve">
+    <value>Export failed: {0}</value>
+  </data>
+  <data name="NoticeLiveExport" xml:space="preserve">
+    <value>Logging live: {0} samples, {1} pools in {2}  (open it in PerfMon any time: View Log Data)</value>
+    <comment>{0} samples, {1} pools, {2} file</comment>
+  </data>
+  <data name="NoticeExportMoved" xml:space="preserve">
+    <value>The export file was in use by another program; logging continues in {0}</value>
+    <comment>{0} = file</comment>
+  </data>
+  <data name="NoticeLiveFailed" xml:space="preserve">
+    <value>Live export stopped: {0}. Raw logs (samples.csv, machine.csv) take over.</value>
+    <comment>{0} = error</comment>
+  </data>
+  <data name="TitleRight" xml:space="preserve">
+    <value>{0} · {1} · {2} cores · every {3}s</value>
+    <comment>{0} machine, {1} source, {2} cores, {3} interval</comment>
+  </data>
+  <data name="TitlePaused" xml:space="preserve">
+    <value>PAUSED</value>
+  </data>
+  <data name="RangeNone" xml:space="preserve">
+    <value>no rows</value>
+  </data>
+  <data name="RangeAll" xml:space="preserve">
+    <value>showing all {0}</value>
+  </data>
+  <data name="RangeSome" xml:space="preserve">
+    <value>rows {0}-{1} of {2}</value>
+  </data>
+  <data name="CardCpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="CardMemory" xml:space="preserve">
+    <value>Memory</value>
+  </data>
+  <data name="CardPools" xml:space="preserve">
+    <value>App pools</value>
+  </data>
+  <data name="CardMbpm" xml:space="preserve">
+    <value>mbpm.exe</value>
+  </data>
+  <data name="CardCores" xml:space="preserve">
+    <value>Cores</value>
+  </data>
+  <data name="CardCoresAll" xml:space="preserve">
+    <value>All</value>
+    <comment>label of the total bar in the Cores card</comment>
+  </data>
+  <data name="CardPoolsPools" xml:space="preserve">
+    <value> pools  </value>
+    <comment>after the count</comment>
+  </data>
+  <data name="CardPoolsWorkers" xml:space="preserve">
+    <value> workers</value>
+    <comment>after the count</comment>
+  </data>
+  <data name="CardPoolsCpu" xml:space="preserve">
+    <value> w3wp CPU  </value>
+    <comment>after the percentage (share of the whole machine)</comment>
+  </data>
+  <data name="CardPoolsChanges" xml:space="preserve">
+    <value> changes</value>
+    <comment>after the count of worker changes</comment>
+  </data>
+  <data name="CardMbpmCpu" xml:space="preserve">
+    <value> CPU  </value>
+    <comment>after MBPM's own CPU percentage</comment>
+  </data>
+  <data name="CardMbpmMissed" xml:space="preserve">
+    <value> missed</value>
+    <comment>after the count of missed samples</comment>
+  </data>
+  <data name="CardMbpmDelay" xml:space="preserve">
+    <value>delay {0:0} ms, max {1:0}</value>
+    <comment>{0} newest sample delay, {1} worst delay</comment>
+  </data>
+  <data name="SortAndRange" xml:space="preserve">
+    <value>sort {0}  ·  {1}</value>
+    <comment>{0} sort column and direction, {1} row range</comment>
+  </data>
+  <data name="MeterMem" xml:space="preserve">
+    <value>Mem</value>
+  </data>
+  <data name="MeterCommit" xml:space="preserve">
+    <value>Commit</value>
+  </data>
+  <data name="MeterFree" xml:space="preserve">
+    <value>{0} free</value>
+    <comment>{0} = amount, e.g. 5.1G</comment>
+  </data>
+  <data name="ColPool" xml:space="preserve">
+    <value>APP POOL</value>
+  </data>
+  <data name="ColPid" xml:space="preserve">
+    <value>W3WP PID</value>
+  </data>
+  <data name="ColCpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="ColUser" xml:space="preserve">
+    <value>USER</value>
+  </data>
+  <data name="KeyInterval" xml:space="preserve">
+    <value>Every {0}s</value>
+    <comment>{0} = sampling interval in seconds</comment>
+  </data>
+  <data name="NoticeInterval" xml:space="preserve">
+    <value>Sampling every {0} s.</value>
+    <comment>{0} seconds</comment>
+  </data>
+  <data name="NoticeCoresTooMany" xml:space="preserve">
+    <value>The Cores view shows up to {1} cores; this machine has {0}.</value>
+    <comment>{0} cores here, {1} limit</comment>
+  </data>
+  <data name="ColWs" xml:space="preserve">
+    <value>WS MB</value>
+  </data>
+  <data name="ColPrivateWs" xml:space="preserve">
+    <value>Private WS MB</value>
+  </data>
+  <data name="ColCommit" xml:space="preserve">
+    <value>Commit MB</value>
+  </data>
+  <data name="ColUptime" xml:space="preserve">
+    <value>UPTIME</value>
+  </data>
+  <data name="RowNotInSample" xml:space="preserve">
+    <value>(not in the sample yet)</value>
+  </data>
+  <data name="EventsNone" xml:space="preserve">
+    <value>No worker changes since MBPM started.</value>
+  </data>
+  <data name="UptimeDays" xml:space="preserve">
+    <value>{0}d {1}</value>
+    <comment>{0} days, {1} hh:mm:ss</comment>
+  </data>
+  <data name="KeyHelp" xml:space="preserve">
+    <value>Help</value>
+  </data>
+  <data name="KeyPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="KeySort" xml:space="preserve">
+    <value>SortBy</value>
+  </data>
+  <data name="KeyCores" xml:space="preserve">
+    <value>Cores</value>
+  </data>
+  <data name="KeyCpu" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="KeyExport" xml:space="preserve">
+    <value>Export Logs</value>
+  </data>
+  <data name="KeyTheme" xml:space="preserve">
+    <value>Theme: {0}</value>
+    <comment>{0} = current theme</comment>
+  </data>
+  <data name="KeyQuit" xml:space="preserve">
+    <value>Quit</value>
+  </data>
+  <data name="KeyUpDown" xml:space="preserve">
+    <value>Up/Down</value>
+  </data>
+  <data name="KeySelect" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="HelpAboutDescription" xml:space="preserve">
+    <value>Live CPU and memory per IIS app pool, htop-style.</value>
+  </data>
+  <data name="HelpThemesHeading" xml:space="preserve">
+    <value>Themes (F3 or T cycles; --theme &lt;name&gt; at startup)</value>
+  </data>
+  <data name="HelpThemeCurrent" xml:space="preserve">
+    <value>(current)</value>
+  </data>
+  <data name="HelpThemesFontNote" xml:space="preserve">
+    <value>Fonts change in the classic console window only; Windows Terminal keeps its own font settings.</value>
+  </data>
+  <data name="HelpScrollMore" xml:space="preserve">
+    <value>more below</value>
+  </data>
+  <data name="HelpScrollEnd" xml:space="preserve">
+    <value>end of help</value>
+  </data>
+  <data name="HelpScrollFooter" xml:space="preserve">
+    <value> -- {0} ({1}/{2}): Up/Down, PgUp/PgDn to scroll, Esc to close --</value>
+    <comment>{0} more/end, {1} last line shown, {2} total lines</comment>
+  </data>
+  <data name="HelpBody" xml:space="preserve">
+    <value> Keys
+   Up Down PgUp PgDn Home End   move the selection (in help: scroll)
+   F5 or Space                  pause / resume the display (logging continues)
+   F6 or S                      sort by CPU, pool, commit or uptime
+   F7 or C                      CPU card: total, or every core (Cores; up to 64 cores)
+   F8 or E                      where the logs are (they're written live, every second)
+   F3 or T                      next theme (colors, and the font in the classic console window)
+   F4 or I                      sampling interval: 1, 2, 5, 10, 15, 30, 60 s (default 1 s, or -i)
+   F1, H or ?                   show / hide this help (Esc closes it)
+   F10 or Q                     quit
+
+ Columns
+   CPU            share of the whole machine (all cores), as in Task Manager's Processes tab
+   USER           the account the worker runs as, e.g. IIS APPPOOL\&lt;pool&gt; (needs elevation)
+   WS MB          working set (Task Manager: Working set (memory))
+   Private WS MB  private working set (Task Manager: Memory (private working set))
+   Commit MB      private bytes, in MB (Task Manager: Commit size)
+   UPTIME         time since this worker process started (d hh:mm:ss)
+
+ Cards
+   CPU            total CPU bar, and one cell per core below it; F7 switches to Cores
+   Cores          total CPU bar, then one bar per core (up to 64 cores)
+   App pools      pools, workers, all workers' CPU (share of the machine), worker changes
+   mbpm.exe       MBPM's own CPU, as a share of the whole machine. Delay: how late the newest sample was
+                  against its schedule (and the worst so far); missed: samples skipped because
+                  collection fell a whole interval behind. Both go into the export.
+
+ Pool names
+   From IIS's own W3SVC_W3WP counters, in the same sample as the figures; WMI (worker
+   command lines) only for workers those counters don't cover yet. Until then: (unknown).
+
+ Logs for Performance Monitor (written live, flushed every second, like a PerfMon log)
+   'mbpm export &lt;session folder&gt; [--from &lt;time&gt;] [--to &lt;time&gt;]' rebuilds them from raw logs (--keep-raw)
+   mbpm_export_perfmon.csv  per-pool data in PerfMon's CSV log format. To view it: perfmon.msc &gt;
+                            View Log Data (Ctrl+L) &gt; Log files &gt; Add (file type CSV) &gt; Data &gt; Add,
+                            then pick 'Much Better App Pool' (one instance per pool) and
+                            'Much Better Machine'.
+                            It can be treated like any other PerfMon CSV log: relog it to .blg,
+                            or feed it to tools that ingest PerfMon CSV (e.g. Splunk).
+   mbpm_export_cpu.csv      plain CSV, one column per pool (CPU % of one core), for Excel
+   export_info.txt          source session, time range and how each column is computed
+   A pool that first appears mid-session is added by rewriting the files once (blank before).
+   Much Better App Pool and Much Better Machine are MBPM's own counters, computed from Windows
+   counters, per pool rather than per process: a replaced worker stays in its pool's column.
+
+ Mock mode (--mock [cores=&lt;n&gt;][,pools=&lt;n&gt;])
+   A simulated IIS server instead of real counters, to try MBPM out: 64 cores and 100 pools by
+   default (1-64 cores, 1-100 pools, e.g. --mock cores=8,pools=12), varying load, an occasional
+   recycle. Sessions are labeled MOCK in the title, the log folder
+   and the export, so they can't pass as real data.
+
+ Worker changes
+   They come from PID changes only. MBPM reports that a worker was replaced, not why
+   (recycle, crash, idle timeout, iisreset and a manual kill all look alike).</value>
+    <comment>Help screen body. Lines starting with one space are headings.</comment>
+  </data>
+  <data name="Kind_started" xml:space="preserve">
+    <value>started</value>
+  </data>
+  <data name="Kind_replaced" xml:space="preserve">
+    <value>replaced</value>
+  </data>
+  <data name="Kind_overlap" xml:space="preserve">
+    <value>overlap</value>
+  </data>
+  <data name="Kind_exited" xml:space="preserve">
+    <value>exited</value>
+  </data>
+  <data name="Kind_gone" xml:space="preserve">
+    <value>gone</value>
+  </data>
+  <data name="ChangeReplaced" xml:space="preserve">
+    <value>PID {0} → {1}</value>
+    <comment>{0} old PIDs, {1} new PIDs</comment>
+  </data>
+  <data name="ChangeStarted" xml:space="preserve">
+    <value>PID {0}</value>
+  </data>
+  <data name="ChangeOverlap" xml:space="preserve">
+    <value>PID {0} started alongside {1}</value>
+  </data>
+  <data name="ChangeExited" xml:space="preserve">
+    <value>PID {0} ({1} continues)</value>
+  </data>
+  <data name="ChangeGone" xml:space="preserve">
+    <value>PID {0} (no worker now)</value>
+  </data>
+  <data name="UnknownPool" xml:space="preserve">
+    <value>(unknown)</value>
+    <comment>A worker whose pool isn't known yet</comment>
+  </data>
+  <data name="UnnamedPool" xml:space="preserve">
+    <value>(pid {0})</value>
+    <comment>A worker with no -ap argument</comment>
+  </data>
+  <data name="PdhFailed" xml:space="preserve">
+    <value>PDH {0} failed, {1}</value>
+    <comment>{0} = operation, {1} = status text</comment>
+  </data>
+  <data name="ErrNoSamplesFile" xml:space="preserve">
+    <value>There is no samples.csv in {0}: MBPM writes raw logs only with --keep-raw. The live mbpm_export_perfmon.csv is there already; relog -b/-e can cut it by time.</value>
+  </data>
+  <data name="ErrBadTime" xml:space="preserve">
+    <value>{0} needs "yyyy-MM-dd HH:mm[:ss]" or "HH:mm[:ss]", not '{1}'.</value>
+    <comment>{0} option, {1} value</comment>
+  </data>
+  <data name="ExportRangeNone" xml:space="preserve">
+    <value>no samples</value>
+  </data>
+  <data name="ExportRange" xml:space="preserve">
+    <value>{0} to {1}</value>
+  </data>
+  <data name="ExportRangeRequested" xml:space="preserve">
+    <value>   (requested: {0} to {1})</value>
+  </data>
+  <data name="ExportStart" xml:space="preserve">
+    <value>start</value>
+  </data>
+  <data name="ExportEnd" xml:space="preserve">
+    <value>end</value>
+  </data>
+  <data name="ExportInfo" xml:space="preserve">
+    <value>{0}
+
+Created:   {1}
+Session:   {2}
+Machine:   {3}
+Range:     {4}
+Samples:   {5}   Pools: {6}
+
+Files
+  mbpm_export_perfmon.csv  PerfMon CSV log format. Open it in Performance Monitor:
+                           View Log Data (Ctrl+L) &gt; Source &gt; Log files &gt; Add (file type: CSV),
+                           then Data &gt; Add and pick 'Much Better App Pool' / 'Much Better Machine'.
+                           It can be handled like any PerfMon CSV log (e.g. relog to .blg).
+  mbpm_export_cpu.csv      Plain CSV: utc_timestamp, local_timestamp, then CPU % of one core per pool.
+
+Timestamps: mbpm_export_perfmon.csv uses local time, as PerfMon does (its header names the time
+zone and bias). The plain CSVs have both utc_timestamp (UTC, e.g. 2026-11-14T23:33:00.123Z) and
+local_timestamp (local time with its UTC offset, e.g. 2026-11-14T18:33:00.123-05:00): the same
+moment twice, so nothing needs converting and the hour repeated when daylight time ends is clear.
+
+These counters are MBPM's own, computed from Windows counters; Windows has no
+'Much Better App Pool' or 'Much Better Machine' counter set. Columns are per app pool, not
+per process: a replaced worker stays in its pool's column, and a pool's workers are summed.
+
+Much Better App Pool(&lt;pool&gt;)
+  CPU % of one core   sum of \Process(w3wp*)\% Processor Time of the pool's workers (100 = one core)
+  CPU % of machine    CPU % of one core / logical processors
+  WS MB               \Process\Working Set, MB (Task Manager: Working set (memory))
+  Private WS MB       \Process\Working Set - Private, MB (Task Manager: Memory (private working set))
+  Commit MB           \Process\Private Bytes, MB (Task Manager: Commit size)
+  Workers are matched to pools by PID: \Process\ID Process with IIS's \W3SVC_W3WP(&lt;PID&gt;_&lt;pool&gt;)
+  instances, or each w3wp command line's -ap argument (WMI) where those don't cover a worker yet.
+
+Much Better Machine
+  CPU %               \Processor Information(_Total)\% Processor Time
+  Memory used MB      total physical memory - \Memory\Available MBytes
+  Memory total MB     total physical memory
+  Commit MB           \Memory\Committed Bytes, MB
+  Commit limit MB     \Memory\Commit Limit, MB
+  Much Better CPU %   MBPM's own CPU, % of all cores of the machine
+  Sample delay ms     how late each sample was taken against its schedule
+  Missed samples      samples skipped so far because MBPM fell a whole interval behind
+
+Blank cells: no worker for that pool at that moment, or no data (e.g. a rate counter's first sample).
+
+Written live, one row per sample, flushed every second; a pool that first appeared mid-session
+was added by rewriting the file once (its earlier cells are blank). To cut this export by time: relog mbpm_export_perfmon.csv -b &lt;begin&gt; -e &lt;end&gt; -f csv -o part.csv
+
+{7}</value>
+    <comment>{0} title, {1} created, {2} session, {3} machine, {4} range, {5} samples, {6} pools, {7} copyright</comment>
+  </data>
+</root>
