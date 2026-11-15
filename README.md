@@ -2,12 +2,13 @@
 
 [![build](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml/badge.svg)](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Built with Claude](https://img.shields.io/badge/Built_with-Claude-D97757?logo=claude&logoColor=white)](https://claude.ai)
 
 **Live CPU and memory per IIS application pool, htop-style, logged as you watch.**
 
 Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. MBPM shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
 
-[Key benefits](#key-benefits) · [Background](#background) · [Quick start](#quick-start) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
+[Key benefits](#key-benefits) · [Read-only by design](#read-only-by-design) · [Background](#background) · [Quick start](#quick-start) · [Columns](#columns) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
 
 ![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
 
@@ -17,11 +18,15 @@ Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... 
 >
 > **2. Right as workers come and go.** PIDs are joined to pools in the same sample as the figures, so renumbered `w3wp#n` instances are never misattributed. Recycled workers stay in their pool's column; web gardens are summed.
 >
-> **3. Nothing installed or changed on the server.** One executable, run on the IIS server itself.
+> **3. Read-only: it changes nothing on the server.** Apart from writing its own log files, MBPM only reads. One executable, nothing installed, no control over IIS. See [Read-only by design](#read-only-by-design).
 >
 > **4. Logged live, like a data collector set.** One row per second, flushed as it goes; a crash loses nothing already written.
 >
 > **5. Low overhead, and honest about it.** One counter query per sample. MBPM's own CPU, sample delay and missed samples are shown and logged.
+
+## Read-only by design
+
+**Apart from writing its log files, MBPM changes nothing on the system.** It reads performance counters, and WMI and process tokens for pool names and accounts. It installs nothing, registers no counters, changes no configuration, and provides no means to stop, start, kill, or recycle pools.
 
 ## Background
 
@@ -31,14 +36,44 @@ Windows can't attribute counters to an app pool on its own: `Process` instances 
 
 ## Quick start
 
+Download the latest `mbpm-<version>.zip` from [Releases](https://github.com/sector7g/MuchBetter/releases), unzip it on the IIS server, and run `mbpm.exe` from an elevated console. Nothing to install or build.
+
 ```text
 mbpm                          monitor this machine (run elevated)
 mbpm --mock                   simulated server, 64 cores, 100 pools
 mbpm --mock cores=8,pools=12  smaller simulation (1-64 cores, 1-100 pools)
+mbpm --mock chaos=5           ... with trouble: spikes, leaks, crashes, 500s, odd pool names (0-10)
 mbpm -h                       all options
 ```
 
 Keys: **F1** help, **F3** theme, **F4** interval, **F5** pause, **F6** sort, **F7** CPU / Cores, **F8** logs, **F10** quit.
+
+## Columns
+
+One row per worker process (`w3wp.exe`). Narrow windows drop USER first, then the .NET and HTTP 500 columns, then the memory columns.
+
+| Column | Source | Notes |
+| --- | --- | --- |
+| APP POOL | `\W3SVC_W3WP(<PID>_<pool>)` instance names; WMI command line as a fallback | |
+| W3WP PID | `\Process(w3wp*)\ID Process` | |
+| CPU | `\Process\% Processor Time` ÷ logical processors | Share of the whole machine, as in Task Manager |
+| USER | the worker's process token | e.g. `IIS APPPOOL\DefaultAppPool`; needs elevation |
+| WS MB | `\Process\Working Set` | Task Manager: Working set (memory) |
+| Private WS MB | `\Process\Working Set - Private` | Task Manager: Memory (private working set) |
+| Commit MB | `\Process\Private Bytes` | Task Manager: Commit size |
+| GC MB | `\.NET CLR Memory\# Bytes in all Heaps` | The .NET heap. Updated at each garbage collection |
+| ≈ Native MB | Private Bytes − `\.NET CLR Memory\# Total committed Bytes` | An estimate: native allocations plus the CLR's own non-heap memory (JIT code, loader heaps, thread stacks) |
+| HTTP 500 % | `\W3SVC_W3WP(<PID>_<pool>)\% 500 HTTP Response Sent` | Share of the worker's responses since the previous sample that were HTTP 500. Status 500 only: IIS has no counter for the whole 5xx range, and 503s from http.sys never reach the worker. 0 when there were no responses |
+| UPTIME | `\Process\Elapsed Time` | Since this worker started |
+
+The .NET columns show "-" for pools without .NET ("No Managed Code"); they're matched to workers by the CLR counters' own `Process ID`.
+
+**Where ≈ Native MB is useful: the trend.** It isn't an exact measure of native memory, but it separates the two kinds of leak:
+
+- **Native MB rising while GC MB stays flat** points to a native leak: COM components, native libraries, unmanaged buffers.
+- **GC MB and Commit MB rising together** points to a managed leak: objects the application keeps referencing.
+
+The export logs these columns per pool under `Much Better App Pool(<pool>)`, as "GC MB", "Native MB (approx)" and "HTTP 500 %". A web garden's workers are summed, except HTTP 500 %, where the highest worker's value is kept. In counter paths, `(` and `)` in a pool name are written `[` and `]`, and `/`, `\` and `#` as `_`, as Windows does for its own instance names.
 
 ## Output
 
@@ -55,11 +90,23 @@ Each run writes `%LOCALAPPDATA%\Sector 7G\mbpm\<machine>\<yyyyMMdd-HHmmss>\`:
 
 Windows with IIS, .NET Framework 4.8, a VT-capable console (Windows 10+; Windows Terminal recommended). Run elevated on the IIS server; MBPM monitors only the machine it runs on.
 
+### Without elevation
+
+MBPM still runs, but some values belong to other accounts' processes and can't be read:
+
+| What | Not elevated | Why |
+| --- | --- | --- |
+| USER | "-" | Reading a worker's account needs access to its process token. |
+| GC MB, ≈ Native MB | "-" | The .NET counters only show your own processes unless elevated. |
+| APP POOL, for workers IIS hasn't named yet | "(unknown)", with a "hidden from WMI: run elevated" status line | The WMI fallback can't read other accounts' command lines. |
+
+Expected to work either way, since they come from ordinary performance counters: CPU, WS MB, Private WS MB, Commit MB, UPTIME, HTTP 500 %, pool names from IIS's `W3SVC_W3WP` counters, the cards and the log files. The log has blank cells wherever the screen shows "-".
+
 **Why .NET Framework 4.8:** it ships with Windows and Windows Server, so the tool is a small executable you copy and run, with nothing to install. PDH, WMI and the console APIs are all available. The cost is C# 7.3, which is enough here.
 
 ## Building
 
-Open `mbpm.sln` in Visual Studio and build. See [BUILDING.md](BUILDING.md).
+No need to build: precompiled versions are on the [Releases](https://github.com/sector7g/MuchBetter/releases) page. To build it yourself, use Visual Studio 2022 or later (Community edition is enough), or the free Build Tools for Visual Studio and `msbuild` without the IDE. See [BUILDING.md](BUILDING.md).
 
 ## License
 

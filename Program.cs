@@ -66,10 +66,7 @@ namespace S7G.mbpm
                 ShutdownDone.Set();
                 return 1;
             }
-            if (options.ThemeName != null)
-            {
-                Theme.Apply(Theme.Find(options.ThemeName));
-            }
+            Theme.Apply(options.ThemeName != null ? Theme.Find(options.ThemeName) : Theme.Default);
 
             // The splash stays up while MBPM connects (WMI and PDH can take a moment).
             Stopwatch splashTime = Stopwatch.StartNew();

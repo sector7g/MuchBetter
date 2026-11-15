@@ -43,14 +43,35 @@ namespace S7G.mbpm.Logging
         internal const string InfoFile = "export_info.txt";
         // Raw log layouts. Current: utc_timestamp,local_timestamp, then the values. Older sessions
         // (one local "timestamp" column) are still read.
-        private const int SampleFields = 10;    // utc,local,pool,pid,cpu1,cpuAll,ws,privateWs,commit,uptime
+        private const int SampleFields = 13;    // utc,local,pool,pid,cpu1,cpuAll,ws,privateWs,commit,uptime,gc,native,http500pct
+        private const int SampleFieldsV2 = 10;  // utc,local,pool,pid,cpu1,cpuAll,ws,privateWs,commit,uptime
         private const int SampleFieldsV1 = 9;   // timestamp,pool,pid,...
         private const int MachineFields = 10;   // utc,local,cpu,memUsed,memTotal,commit,commitLimit,mbpmCpu,delay,missed
         private const int MachineFieldsV2 = 9;  // timestamp + the same 8 values
         private const int MachineFieldsV1 = 6;  // timestamp,cpu,memUsed,memTotal,commit,commitLimit
 
         internal static readonly string[] PoolCounters =
-            { "CPU % of one core", "CPU % of machine", "WS MB", "Private WS MB", "Commit MB" };
+        {
+            "CPU % of one core", "CPU % of machine", "WS MB", "Private WS MB", "Commit MB",
+            "GC MB", "Native MB (approx)", "HTTP 500 %",
+        };
+
+        // How a pool's workers combine (web garden): summed, except HTTP 500 %, a percentage, where
+        // the highest of the pool's workers is kept.
+        internal static readonly bool[] PoolCounterSummed = { true, true, true, true, true, true, true, false };
+
+        /// <summary>Combines a worker's value into its pool's cell.</summary>
+        internal static void Combine(double?[,] sums, int pool, int counter, double value)
+        {
+            double? current = sums[pool, counter];
+            sums[pool, counter] = !current.HasValue ? value
+                : PoolCounterSummed[counter] ? current.Value + value
+                : Math.Max(current.Value, value);
+        }
+
+        // Where each PoolCounters value is in a samples.csv row, counted from the pool column.
+        // Uptime (offset 7) sits between Commit MB and the counters added later.
+        private static readonly int[] SampleOffsets = { 2, 3, 4, 5, 6, 8, 9, 10 };
 
         internal static readonly string[] MachineCounters =
             { "CPU %", "Memory used MB", "Memory total MB", "Commit MB", "Commit limit MB", "Much Better CPU %", "Sample delay ms", "Missed samples" };
@@ -77,9 +98,9 @@ namespace S7G.mbpm.Logging
             DateTime? end = null;
             bool boundsResolved = false;
 
-            foreach (string[] fields in ReadRows(samplesPath, SampleFields, SampleFieldsV1))
+            foreach (string[] fields in ReadRows(samplesPath, SampleFields, SampleFieldsV2, SampleFieldsV1))
             {
-                int t = TimeColumns(fields, SampleFields);
+                int t = SampleTimeColumns(fields);
                 DateTime time;
                 DateTimeOffset when;
                 if (!TryRowTime(fields, t, out when))
@@ -128,9 +149,9 @@ namespace S7G.mbpm.Logging
                 DateTimeOffset currentTime = default(DateTimeOffset);
                 var sums = new double?[poolList.Count, PoolCounters.Length];
 
-                foreach (string[] fields in ReadRows(samplesPath, SampleFields, SampleFieldsV1))
+                foreach (string[] fields in ReadRows(samplesPath, SampleFields, SampleFieldsV2, SampleFieldsV1))
                 {
-                    int t = TimeColumns(fields, SampleFields);
+                    int t = SampleTimeColumns(fields);
                     DateTimeOffset when;
                     if (!TryRowTime(fields, t, out when) || !InRange(when.DateTime, start, end))
                     {
@@ -157,10 +178,11 @@ namespace S7G.mbpm.Logging
                     }
                     for (int k = 0; k < PoolCounters.Length; k++)
                     {
+                        int index = t + SampleOffsets[k];
                         double value;
-                        if (TryNumber(fields[t + 2 + k], out value))
+                        if (index < fields.Length && TryNumber(fields[index], out value))     // older logs have fewer
                         {
-                            sums[p, k] = (sums[p, k] ?? 0) + value;     // web garden: sum the pool's workers
+                            Combine(sums, p, k, value);     // web garden: the pool's workers together
                         }
                     }
                 }
@@ -195,7 +217,7 @@ namespace S7G.mbpm.Logging
             {
                 foreach (string counter in PoolCounters)
                 {
-                    header.Add(string.Format(@"\\{0}\Much Better App Pool({1})\{2}", machine, pool, counter));
+                    header.Add(string.Format(@"\\{0}\Much Better App Pool({1})\{2}", machine, PerfMonInstance(pool), counter));
                 }
             }
             foreach (string counter in MachineCounters)
@@ -203,6 +225,14 @@ namespace S7G.mbpm.Logging
                 header.Add(string.Format(@"\\{0}\Much Better Machine\{1}", machine, counter));
             }
             return string.Join(",", header.Select(Quote));
+        }
+
+        // Instance names in a counter path can't hold the path's own delimiters. Windows writes
+        // "(" and ")" as "[" and "]" and "/", "\\" and "#" as "_" in its own instance names; do the
+        // same, so a pool such as "Pool (staging)" gives a path PerfMon can parse.
+        internal static string PerfMonInstance(string pool)
+        {
+            return pool.Replace('(', '[').Replace(')', ']').Replace('/', '_').Replace('\\', '_').Replace('#', '_');
         }
 
         internal static string CpuHeader(IEnumerable<string> pools)
@@ -358,6 +388,11 @@ namespace S7G.mbpm.Logging
         // ---- Values and bounds ----
 
         // 2 for the current layout (utc_timestamp,local_timestamp), 1 for older sessions.
+        private static int SampleTimeColumns(string[] fields)
+        {
+            return fields.Length == SampleFieldsV1 ? 1 : 2;
+        }
+
         private static int TimeColumns(string[] fields, int currentFieldCount)
         {
             return fields.Length == currentFieldCount ? 2 : 1;

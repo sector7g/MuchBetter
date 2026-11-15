@@ -14,6 +14,9 @@ namespace S7G.mbpm.Core
         public double? PrivateWorkingSet;   // Task Manager: Memory (private working set)
         public double? Commit;              // Private Bytes; Task Manager: Commit size
         public double? ElapsedSeconds;      // time since the process started
+        public double? GcHeapBytes;         // .NET CLR Memory\# Bytes in all Heaps
+        public double? GcCommittedBytes;    // .NET CLR Memory\# Total committed Bytes
+        public double? Http500Percent;      // W3SVC_W3WP\% 500 HTTP Response Sent
     }
 
     /// <summary>Everything one PDH collection returned.</summary>
@@ -31,6 +34,7 @@ namespace S7G.mbpm.Core
         // Pool names from IIS's \W3SVC_W3WP(<PID>_<pool>) instances, from the same collection.
         public Dictionary<int, string> PoolByPid = new Dictionary<int, string>();
         public bool HasPoolCounters;        // false if the W3SVC_W3WP counter set isn't available
+
 
         // Filled in by the Sampler: MBPM's own cost and timing, measured where MBPM runs.
         public double? MbpmCpu;             // MBPM's CPU since the previous sample, % of all cores of this machine
@@ -77,6 +81,9 @@ namespace S7G.mbpm.Core
         public double? PrivateWorkingSetMB;
         public double? CommitMB;
         public TimeSpan? Uptime;
+        public double? GcMB;            // .NET heap: # Bytes in all Heaps
+        public double? NativeMB;        // estimate: Private Bytes - .NET # Total committed Bytes
+        public double? Http500Percent;  // share of responses that were HTTP 500, since the previous sample
         public string User;             // the account the worker runs as; null until known
         public bool NotInSample;        // WMI sees the process, the last sample doesn't
 

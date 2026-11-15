@@ -14,12 +14,12 @@ Usage: mbpm [options]
   -i, --interval &lt;sec&gt;    Sample interval in seconds (default: 1; F4 changes it while running)
   -p, --poll &lt;sec&gt;        How often to refresh pool names from WMI when needed (default: 5)
   -l, --logdir &lt;folder&gt;   Root folder for session logs (default: %LOCALAPPDATA%\Sector 7G\mbpm)
-      --theme &lt;name&gt;      Start with a theme: HTOP, Redmond, Metro Night, Monad, Sector 7G,
-                          Lighthouse (F3 or T cycles them)
-      --mock [cores=&lt;n&gt;][,pools=&lt;n&gt;]
+      --theme &lt;name&gt;      Start with a theme: Sector 7G (default), Mono, Metro Night, HTOP
+                          (F3 or T cycles them)
+      --mock [cores=&lt;n&gt;][,pools=&lt;n&gt;][,chaos=&lt;n&gt;]
                           Simulate an IIS server instead of reading counters, to try MBPM out
-                          without IIS: 1-64 cores, 1-100 pools (default 64 and 100). The
-                          session is labeled MOCK
+                          without IIS: 1-64 cores, 1-100 pools (default 64 and 100), chaos 0-10
+                          (default 0: calm). The session is labeled MOCK
       --ascii             Use plain ASCII for bars, graphs and symbols
       --no-alt            Draw in the normal console buffer instead of a full-screen view
       --no-splash         Skip the startup screen
@@ -49,7 +49,8 @@ want to re-slice. Otherwise relog can cut the PerfMon export by time: relog mbpm
 Pool names come from IIS's own W3SVC_W3WP counters, in the same sample as the CPU and memory
 figures; WMI (worker command lines) is used only for workers those counters don't cover yet.
 
-Rights: run elevated, so WMI can read every worker's command line when it's needed.</value>
+Rights: run elevated. Without it, USER and the .NET columns show "-", and workers IIS hasn't
+named yet show "(unknown)" (WMI can't read their command lines). Everything else works.</value>
     <comment>Shown by mbpm -h, after the product name and legal lines.</comment>
   </data>
   <data name="ErrUnknownOption" xml:space="preserve">
@@ -71,12 +72,12 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
     <value>--from and --to only apply to 'mbpm export'.</value>
   </data>
   <data name="ErrMockSetting" xml:space="preserve">
-    <value>Unknown --mock setting '{0}'. Use cores=&lt;1-{1}&gt; and/or pools=&lt;1-{2}&gt;, e.g. --mock cores=8,pools=12.</value>
-    <comment>{0} = setting given, {1} max cores, {2} max pools</comment>
+    <value>Unknown --mock setting '{0}'. Use cores=&lt;1-{1}&gt;, pools=&lt;1-{2}&gt; and chaos=&lt;0-{3}&gt;, in any combination, e.g. --mock cores=8,pools=12,chaos=5.</value>
+    <comment>{0} = setting given, {1} max cores, {2} max pools, {3} max chaos</comment>
   </data>
   <data name="ErrMockRange" xml:space="preserve">
-    <value>--mock {0} must be a whole number from 1 to {1}, not '{2}'.</value>
-    <comment>{0} = cores or pools, {1} = maximum, {2} = value given</comment>
+    <value>--mock {0} must be a whole number from {1} to {2}, not '{3}'.</value>
+    <comment>{0} = cores, pools or chaos, {1} = minimum, {2} = maximum, {3} = value given</comment>
   </data>
   <data name="ErrUnknownTheme" xml:space="preserve">
     <value>Unknown theme '{0}'. Themes: {1}</value>
@@ -157,6 +158,10 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
   <data name="TitleMock" xml:space="preserve">
     <value>MOCK</value>
   </data>
+  <data name="TitleMockChaos" xml:space="preserve">
+    <value>MOCK · chaos {0}</value>
+    <comment>{0} = chaos level 1-10</comment>
+  </data>
   <data name="StatusHidden" xml:space="preserve">
     <value>{0} {1} process(es) hidden from WMI: run elevated.</value>
     <comment>{0} = count, {1} = process name</comment>
@@ -178,20 +183,20 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
     <comment>{0} = machine, {1} = seconds since the last sample, {2} = last error</comment>
   </data>
   <data name="NoticeTheme" xml:space="preserve">
-    <value>Theme: {0} - {1}</value>
-    <comment>{0} name, {1} description</comment>
+    <value>Theme: {0}</value>
+    <comment>{0} name</comment>
   </data>
   <data name="NoticeThemeFont" xml:space="preserve">
-    <value>Theme: {0} - {1}  ·  font {2} {3}</value>
-    <comment>{0} name, {1} description, {2} font, {3} size</comment>
+    <value>Theme: {0}  ·  font {1} {2}</value>
+    <comment>{0} name, {1} font, {2} size</comment>
   </data>
   <data name="NoticeThemeNoFont" xml:space="preserve">
-    <value>Theme: {0} - {1}  ·  colors only: Windows Terminal keeps fonts in its own settings</value>
-    <comment>{0} name, {1} description</comment>
+    <value>Theme: {0}  ·  colors only: Windows Terminal keeps fonts in its own settings</value>
+    <comment>{0} name</comment>
   </data>
   <data name="NoticeThemeFontMissing" xml:space="preserve">
-    <value>Theme: {0} - {1}  ·  font {2} isn't installed, colors only</value>
-    <comment>{0} name, {1} description, {2} font</comment>
+    <value>Theme: {0}  ·  font {1} isn't installed, colors only</value>
+    <comment>{0} name, {1} font</comment>
   </data>
   <data name="NoticeExported" xml:space="preserve">
     <value>Exported {0} samples, {1} pools: {2}  (open it in PerfMon: View Log Data)</value>
@@ -322,6 +327,15 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
   <data name="ColCommit" xml:space="preserve">
     <value>Commit MB</value>
   </data>
+  <data name="ColGc" xml:space="preserve">
+    <value>GC MB</value>
+  </data>
+  <data name="ColNative" xml:space="preserve">
+    <value>≈ Native MB</value>
+  </data>
+  <data name="ColHttp500" xml:space="preserve">
+    <value>HTTP 500 %</value>
+  </data>
   <data name="ColUptime" xml:space="preserve">
     <value>UPTIME</value>
   </data>
@@ -406,6 +420,12 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
    WS MB          working set (Task Manager: Working set (memory))
    Private WS MB  private working set (Task Manager: Memory (private working set))
    Commit MB      private bytes, in MB (Task Manager: Commit size)
+   GC MB          .NET heap: # Bytes in all Heaps ("-" for pools without .NET)
+   ≈ Native MB    estimate: Commit MB - the .NET GC's committed memory. Native allocations plus
+                  the CLR's own non-heap memory. Watch the trend: rising while GC MB stays flat
+                  points to a native leak; both rising together, to a managed one
+   HTTP 500 %     share of the worker's responses that were HTTP 500 (status 500 only; IIS has
+                  no counter for the whole 5xx range), since the previous sample
    UPTIME         time since this worker process started (d hh:mm:ss)
 
  Cards
@@ -434,10 +454,13 @@ Rights: run elevated, so WMI can read every worker's command line when it's need
    Much Better App Pool and Much Better Machine are MBPM's own counters, computed from Windows
    counters, per pool rather than per process: a replaced worker stays in its pool's column.
 
- Mock mode (--mock [cores=&lt;n&gt;][,pools=&lt;n&gt;])
+ Mock mode (--mock [cores=&lt;n&gt;][,pools=&lt;n&gt;][,chaos=&lt;n&gt;])
    A simulated IIS server instead of real counters, to try MBPM out: 64 cores and 100 pools by
    default (1-64 cores, 1-100 pools, e.g. --mock cores=8,pools=12), varying load, an occasional
-   recycle. Sessions are labeled MOCK in the title, the log folder
+   recycle. chaos=1 to 10 adds trouble in proportion: CPU spikes, memory leaks (native or
+   managed) that end in a crash, crashes with a gap before the pool restarts, more recycles,
+   and bursts of HTTP 500s. Every third pool also gets an odd name (spaces, underscores,
+   parentheses, non-ASCII, very long) to test display and export. Sessions are labeled MOCK in the title, the log folder
    and the export, so they can't pass as real data.
 
  Worker changes
@@ -541,6 +564,13 @@ Much Better App Pool(&lt;pool&gt;)
   WS MB               \Process\Working Set, MB (Task Manager: Working set (memory))
   Private WS MB       \Process\Working Set - Private, MB (Task Manager: Memory (private working set))
   Commit MB           \Process\Private Bytes, MB (Task Manager: Commit size)
+  GC MB               \.NET CLR Memory\# Bytes in all Heaps, MB
+  Native MB (approx)  Private Bytes - \.NET CLR Memory\# Total committed Bytes, MB: native
+                      allocations plus the CLR's non-heap memory; an estimate, best read as a trend
+  HTTP 500 %          \W3SVC_W3WP(&lt;PID&gt;_&lt;pool&gt;)\% 500 HTTP Response Sent: status 500 only; for a
+                      web garden, the highest of the pool's workers
+  .NET counters are matched to workers by their own Process ID counter; blank for workers
+  without .NET.
   Workers are matched to pools by PID: \Process\ID Process with IIS's \W3SVC_W3WP(&lt;PID&gt;_&lt;pool&gt;)
   instances, or each w3wp command line's -ap argument (WMI) where those don't cover a worker yet.
 

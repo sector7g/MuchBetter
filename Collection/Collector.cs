@@ -7,8 +7,8 @@ using S7G.mbpm.Core;
 namespace S7G.mbpm.Collection
 {
     /// <summary>
-    /// One PDH query for everything MBPM shows: per-worker CPU, memory and uptime, per-core CPU and
-    /// available memory, on this machine. Nothing is created or changed. Not thread-safe; the caller
+    /// One PDH query for everything MBPM shows: per-worker CPU, memory, uptime and .NET heap,
+    /// per-worker share of HTTP 500 responses, per-core CPU and available memory, on this machine. Nothing is created or changed. Not thread-safe; the caller
     /// serializes access.
     /// </summary>
     internal sealed class Collector : ISnapshotSource
@@ -25,6 +25,10 @@ namespace S7G.mbpm.Collection
         private readonly IntPtr committedBytes;
         private readonly IntPtr commitLimit;
         private readonly IntPtr iisWorkers;
+        private readonly IntPtr clrPid;
+        private readonly IntPtr gcHeap;
+        private readonly IntPtr gcCommitted;
+        private readonly IntPtr iis500;
 
         public Collector(string processName)
         {
@@ -55,6 +59,18 @@ namespace S7G.mbpm.Collection
                 // IIS names these instances "<PID>_<pool>": pool names in the same snapshot as the
                 // figures, with no WMI. Any counter of the set will do; only the instance names are used.
                 iisWorkers = query.TryAdd(@"\W3SVC_W3WP(*)\Active Requests");
+
+                // .NET heap per worker. This set uses their own "w3wp#n" names, so
+                // they're joined to workers by their own Process ID counter. Workers without .NET
+                // (No Managed Code pools) simply have no instance here.
+                string clr = "(" + processName + @"*)\";
+                clrPid = query.TryAdd(@"\.NET CLR Memory" + clr + "Process ID");
+                gcHeap = query.TryAdd(@"\.NET CLR Memory" + clr + "# Bytes in all Heaps");
+                gcCommitted = query.TryAdd(@"\.NET CLR Memory" + clr + "# Total committed Bytes");
+
+                // Share of the worker's responses that were HTTP 500 (status 500 only; IIS has no
+                // counter for the whole 5xx range). Same "<PID>_<pool>" instances as above.
+                iis500 = query.TryAdd(@"\W3SVC_W3WP(*)\% 500 HTTP Response Sent");
 
                 // Rate counters need two samples; this first one primes them.
                 query.Collect();
@@ -105,6 +121,8 @@ namespace S7G.mbpm.Collection
                 });
             }
 
+            ReadClr(snapshot);
+            ReadIisErrors(snapshot);
             ReadCores(snapshot);
             snapshot.AvailableMB = PdhQuery.ReadValue(availableMB);
             snapshot.CommittedBytes = PdhQuery.ReadValue(committedBytes);
@@ -222,6 +240,55 @@ namespace S7G.mbpm.Collection
             }
             pid = 0;
             return false;
+        }
+
+        // .NET CLR Memory instances -> the worker with the same Process ID.
+        private void ReadClr(Snapshot snapshot)
+        {
+            List<InstanceValue> pids = PdhQuery.ReadArray(clrPid);
+            if (pids.Count == 0)
+            {
+                return;
+            }
+            double?[] heap = Align(pids, PdhQuery.ReadArray(gcHeap));
+            double?[] committed = Align(pids, PdhQuery.ReadArray(gcCommitted));
+
+            var byPid = new Dictionary<int, ProcessSample>();
+            foreach (ProcessSample process in snapshot.Processes)
+            {
+                byPid[process.Pid] = process;
+            }
+            for (int i = 0; i < pids.Count; i++)
+            {
+                ProcessSample process;
+                if (pids[i].Valid && byPid.TryGetValue((int)Math.Round(pids[i].Value), out process))
+                {
+                    process.GcHeapBytes = heap[i];
+                    process.GcCommittedBytes = committed[i];
+                }
+            }
+        }
+
+        // \W3SVC_W3WP(<PID>_<pool>)\% 500 HTTP Response Sent -> the worker with that PID. The counter
+        // is a fraction of the responses sent since the previous sample; with no responses in between
+        // PDH can't compute it, which here means 0 %.
+        private void ReadIisErrors(Snapshot snapshot)
+        {
+            var byPid = new Dictionary<int, ProcessSample>();
+            foreach (ProcessSample process in snapshot.Processes)
+            {
+                byPid[process.Pid] = process;
+            }
+            foreach (InstanceValue item in PdhQuery.ReadArray(iis500))
+            {
+                int pid;
+                string pool;
+                ProcessSample process;
+                if (TryParsePoolInstance(item.Name, out pid, out pool) && byPid.TryGetValue(pid, out process))
+                {
+                    process.Http500Percent = item.Valid ? item.Value : 0.0;
+                }
+            }
         }
 
         // "group,index" (Processor Information) or "index" (Processor) -> sortable key.

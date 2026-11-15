@@ -15,7 +15,6 @@ namespace S7G.mbpm.UI
     internal sealed class Theme
     {
         public string Name;
-        public string Description;
         public string FontFace;         // null: leave the font alone
         public short FontSize;          // character height in pixels
 
@@ -32,48 +31,12 @@ namespace S7G.mbpm.UI
         public string SelectedText, SelectedBack;
         public string KeyText, KeyBack;
 
+        // Sector 7G is the default; F3 cycles in this order.
         public static readonly List<Theme> All = new List<Theme>
         {
             new Theme
             {
-                Name = "HTOP", Description = "The original: terminal colors, as htop draws them",
-            },
-            new Theme
-            {
-                Name = "Redmond", Description = "Light, in Windows 11 colors",
-                FontFace = "Cascadia Mono", FontSize = 18,
-                Text = "26;26;26", Background = "243;243;243", Dim = "112;112;112",
-                Low = "16;124;16", Mid = "157;93;0", High = "196;43;28", Accent = "0;95;184",
-                BadgeText = "255;255;255", BadgeBack = "0;95;184",
-                HeaderText = "255;255;255", HeaderBack = "0;95;184",
-                SelectedText = "0;0;0", SelectedBack = "204;228;247",
-                KeyText = "26;26;26", KeyBack = "218;218;218",
-            },
-            new Theme
-            {
-                Name = "Metro Night", Description = "Dark, like Task Manager's dark mode",
-                FontFace = "Consolas", FontSize = 18,
-                Text = "230;230;230", Background = "32;32;32", Dim = "140;140;140",
-                Low = "108;203;95", Mid = "252;225;0", High = "247;99;12", Accent = "96;205;255",
-                BadgeText = "0;0;0", BadgeBack = "96;205;255",
-                HeaderText = "0;0;0", HeaderBack = "96;205;255",
-                SelectedText = "255;255;255", SelectedBack = "0;90;158",
-                KeyText = "230;230;230", KeyBack = "60;60;60",
-            },
-            new Theme
-            {
-                Name = "Monad", Description = "Classic PowerShell blue (Monad was PowerShell's code name)",
-                FontFace = "Lucida Console", FontSize = 16,
-                Text = "238;237;240", Background = "1;36;86", Dim = "150;170;200",
-                Low = "120;230;120", Mid = "249;241;165", High = "255;120;120", Accent = "97;214;214",
-                BadgeText = "1;36;86", BadgeBack = "97;214;214",
-                HeaderText = "1;36;86", HeaderBack = "238;237;240",
-                SelectedText = "1;36;86", SelectedBack = "249;241;165",
-                KeyText = "1;36;86", KeyBack = "204;204;204",
-            },
-            new Theme
-            {
-                Name = "Sector 7G", Description = "Charcoal and white, from the 7G logo",
+                Name = "Sector 7G",
                 FontFace = "Cascadia Code", FontSize = 20,
                 Text = "245;245;245", Background = "28;28;28", Dim = "128;128;128",
                 Low = "160;200;120", Mid = "230;190;90", High = "230;90;80", Accent = "200;200;200",
@@ -84,16 +47,36 @@ namespace S7G.mbpm.UI
             },
             new Theme
             {
-                Name = "Lighthouse", Description = "High contrast, large type",
-                FontFace = "Consolas", FontSize = 24,
-                Text = "255;255;255", Background = "0;0;0", Dim = "200;200;200",
-                Low = "0;255;0", Mid = "255;255;0", High = "255;80;80", Accent = "0;255;255",
-                BadgeText = "0;0;0", BadgeBack = "0;255;255",
-                HeaderText = "0;0;0", HeaderBack = "255;255;0",
-                SelectedText = "0;0;0", SelectedBack = "0;255;255",
-                KeyText = "0;0;0", KeyBack = "255;255;255",
+                // Greyscale only: load shows as brightness, from grey to white.
+                Name = "Mono",
+                Text = "220;220;220", Background = "18;18;18", Dim = "120;120;120",
+                Low = "170;170;170", Mid = "210;210;210", High = "255;255;255", Accent = "235;235;235",
+                BadgeText = "18;18;18", BadgeBack = "220;220;220",
+                HeaderText = "18;18;18", HeaderBack = "190;190;190",
+                SelectedText = "255;255;255", SelectedBack = "70;70;70",
+                KeyText = "18;18;18", KeyBack = "160;160;160",
+            },
+            new Theme
+            {
+                Name = "Metro Night",
+                FontFace = "Consolas", FontSize = 18,
+                Text = "230;230;230", Background = "32;32;32", Dim = "140;140;140",
+                Low = "108;203;95", Mid = "252;225;0", High = "247;99;12", Accent = "96;205;255",
+                BadgeText = "0;0;0", BadgeBack = "96;205;255",
+                HeaderText = "0;0;0", HeaderBack = "96;205;255",
+                SelectedText = "255;255;255", SelectedBack = "0;90;158",
+                KeyText = "230;230;230", KeyBack = "60;60;60",
+            },
+            new Theme
+            {
+                Name = "HTOP",      // the console's own colors, as htop draws them
             },
         };
+
+        public static Theme Default
+        {
+            get { return All[0]; }
+        }
 
         public static Theme Current { get; private set; }
 

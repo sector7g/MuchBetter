@@ -61,7 +61,7 @@ namespace S7G.mbpm.Logging
             }
             RawLogs = true;
             samples = Open(Path.Combine(Folder, SamplesFile));
-            samples.WriteLine(Timestamps.Header + ",pool,pid,cpu_one_core,cpu_all_cores,ws_mb,private_ws_mb,commit_mb,uptime_s");
+            samples.WriteLine(Timestamps.Header + ",pool,pid,cpu_one_core,cpu_all_cores,ws_mb,private_ws_mb,commit_mb,uptime_s,gc_mb,native_mb,http500_percent");
             samples.Flush();
 
             this.machine = Open(Path.Combine(Folder, MachineFile));
@@ -96,7 +96,10 @@ namespace S7G.mbpm.Logging
                     Number(row.WorkingSetMB),
                     Number(row.PrivateWorkingSetMB),
                     Number(row.CommitMB),
-                    row.Uptime.HasValue ? row.Uptime.Value.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) : string.Empty));
+                    row.Uptime.HasValue ? row.Uptime.Value.TotalSeconds.ToString("0", CultureInfo.InvariantCulture) : string.Empty,
+                    Number(row.GcMB),
+                    Number(row.NativeMB),
+                    Number(row.Http500Percent)));
             }
             samples.Flush();
         }

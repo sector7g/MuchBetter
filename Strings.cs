@@ -60,13 +60,13 @@ namespace S7G.mbpm
             get { return Get("ErrFromToOnlyExport"); }
         }
 
-        /// <summary>Unknown --mock setting '{0}'. Use cores=&lt;1-{1}&gt; and/or pools=&lt;1-{2}&gt;, e.g. --mock cores...</summary>
+        /// <summary>Unknown --mock setting '{0}'. Use cores=&lt;1-{1}&gt;, pools=&lt;1-{2}&gt; and chaos=&lt;0-{3}&gt;, in an...</summary>
         public static string ErrMockSetting
         {
             get { return Get("ErrMockSetting"); }
         }
 
-        /// <summary>--mock {0} must be a whole number from 1 to {1}, not '{2}'.</summary>
+        /// <summary>--mock {0} must be a whole number from {1} to {2}, not '{3}'.</summary>
         public static string ErrMockRange
         {
             get { return Get("ErrMockRange"); }
@@ -216,6 +216,12 @@ namespace S7G.mbpm
             get { return Get("TitleMock"); }
         }
 
+        /// <summary>MOCK · chaos {0}</summary>
+        public static string TitleMockChaos
+        {
+            get { return Get("TitleMockChaos"); }
+        }
+
         /// <summary>{0} {1} process(es) hidden from WMI: run elevated.</summary>
         public static string StatusHidden
         {
@@ -246,25 +252,25 @@ namespace S7G.mbpm
             get { return Get("StatusReconnecting"); }
         }
 
-        /// <summary>Theme: {0} - {1}</summary>
+        /// <summary>Theme: {0}</summary>
         public static string NoticeTheme
         {
             get { return Get("NoticeTheme"); }
         }
 
-        /// <summary>Theme: {0} - {1}  ·  font {2} {3}</summary>
+        /// <summary>Theme: {0}  ·  font {1} {2}</summary>
         public static string NoticeThemeFont
         {
             get { return Get("NoticeThemeFont"); }
         }
 
-        /// <summary>Theme: {0} - {1}  ·  colors only: Windows Terminal keeps fonts in its own settings</summary>
+        /// <summary>Theme: {0}  ·  colors only: Windows Terminal keeps fonts in its own settings</summary>
         public static string NoticeThemeNoFont
         {
             get { return Get("NoticeThemeNoFont"); }
         }
 
-        /// <summary>Theme: {0} - {1}  ·  font {2} isn't installed, colors only</summary>
+        /// <summary>Theme: {0}  ·  font {1} isn't installed, colors only</summary>
         public static string NoticeThemeFontMissing
         {
             get { return Get("NoticeThemeFontMissing"); }
@@ -490,6 +496,24 @@ namespace S7G.mbpm
         public static string ColCommit
         {
             get { return Get("ColCommit"); }
+        }
+
+        /// <summary>GC MB</summary>
+        public static string ColGc
+        {
+            get { return Get("ColGc"); }
+        }
+
+        /// <summary>≈ Native MB</summary>
+        public static string ColNative
+        {
+            get { return Get("ColNative"); }
+        }
+
+        /// <summary>HTTP 500 %</summary>
+        public static string ColHttp500
+        {
+            get { return Get("ColHttp500"); }
         }
 
         /// <summary>UPTIME</summary>

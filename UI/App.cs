@@ -74,7 +74,7 @@ namespace S7G.mbpm.UI
             this.options = options;
             if (options.Mock)
             {
-                var mock = new MockSource(new MockWorld(options.MockCores, options.MockPools, Environment.TickCount));
+                var mock = new MockSource(new MockWorld(options.MockCores, options.MockPools, Environment.TickCount, options.MockChaos));
                 mapper = mock;
                 sampler = new Sampler(options, () => mock);
                 totalMB = mock.GetTotalPhysicalMemoryMB();
@@ -598,6 +598,7 @@ namespace S7G.mbpm.UI
                 Machine = options.Machine,
                 Source = options.Mock ? Strings.SourceMock : Strings.SourceLocal,
                 Mock = options.Mock,
+                MockChaos = options.MockChaos,
                 ThemeName = Theme.Current.Name,
                 SortLabel = SortLabels[sortMode],
                 Status = status,
@@ -697,14 +698,14 @@ namespace S7G.mbpm.UI
             {
                 case FontResult.Changed:
                     return theme.FontFace == null
-                        ? string.Format(Strings.NoticeTheme, theme.Name, theme.Description)
-                        : string.Format(Strings.NoticeThemeFont, theme.Name, theme.Description, theme.FontFace, theme.FontSize);
+                        ? string.Format(Strings.NoticeTheme, theme.Name)
+                        : string.Format(Strings.NoticeThemeFont, theme.Name, theme.FontFace, theme.FontSize);
                 case FontResult.NotSupported:
-                    return string.Format(Strings.NoticeThemeNoFont, theme.Name, theme.Description);
+                    return string.Format(Strings.NoticeThemeNoFont, theme.Name);
                 case FontResult.NotInstalled:
-                    return string.Format(Strings.NoticeThemeFontMissing, theme.Name, theme.Description, theme.FontFace);
+                    return string.Format(Strings.NoticeThemeFontMissing, theme.Name, theme.FontFace);
                 default:
-                    return string.Format(Strings.NoticeTheme, theme.Name, theme.Description);
+                    return string.Format(Strings.NoticeTheme, theme.Name);
             }
         }
 

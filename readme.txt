@@ -6,11 +6,18 @@ Licensed under the MIT License (see LICENSE)
 Live CPU and memory per IIS app pool, htop-style, logged as a PerfMon log. Monitors the
 machine it runs on. Run elevated, in Windows Terminal or the classic console.
 
+Read-only: apart from its log files, MBPM changes nothing, and has no stop, start, kill or
+recycle actions. See README.md.
+
+Not elevated: USER and the .NET columns (GC MB, ~ Native MB) show "-", and workers
+IIS hasn't named yet show "(unknown)" because WMI can't read their command lines. Everything
+else works.
+
 Usage
 -----
   mbpm [-c <cores>] [-i <sec>] [-p <sec>] [-l <log folder>] [--theme <name>]
        [--ascii] [--no-alt] [--no-splash] [--no-export] [--keep-raw] [--debug-logs]
-  mbpm --mock [cores=<1-64>][,pools=<1-100>]
+  mbpm --mock [cores=<1-64>][,pools=<1-100>][,chaos=<0-10>]
   mbpm export <session folder> [--from <time>] [--to <time>]
   mbpm -h
 
@@ -21,8 +28,10 @@ Screen
            64 cores); Memory (RAM, commit); App pools (pools, workers, their CPU, worker
            changes); mbpm.exe (own CPU, missed samples, sample delay).
   Table    one row per worker: APP POOL, W3WP PID, CPU (share of the machine), USER (the
-           worker's account), WS MB, Private WS MB, Commit MB, UPTIME. Narrow windows drop
-           USER, then the memory columns.
+           worker's account), WS MB, Private WS MB, Commit MB, GC MB (.NET heap),
+           ~ Native MB (Commit MB minus the .NET GC's committed memory: an estimate),
+           HTTP 500 % (share of responses that were status 500), UPTIME. Narrow windows drop USER, then the .NET and HTTP 500 columns, then
+           the memory columns. README.md lists each column's counter.
   Bottom   newest error, notice or worker change, with sort and row range; the key bar.
 
   Memory columns match Task Manager: Working set (memory), Memory (private working set),
@@ -43,7 +52,7 @@ Keys
 
 Themes
 ------
-  HTOP, Redmond, Metro Night, Monad, Sector 7G, Lighthouse. Fonts change only in the classic
+  Sector 7G (default), Mono (greyscale), Metro Night, HTOP. Fonts change only in the classic
   console; Windows Terminal keeps its own. The original font is restored on exit.
 
 Files
@@ -64,11 +73,12 @@ Export
 ------
   Counter sets (MBPM's own, computed from Windows counters):
     Much Better App Pool(<pool>)  CPU % of one core, CPU % of machine, WS MB, Private WS MB,
-                                  Commit MB
+                                  Commit MB, GC MB, Native MB (approx), HTTP 500 %
     Much Better Machine           CPU %, Memory used/total MB, Commit MB, Commit limit MB,
                                   Much Better CPU %, Sample delay ms, Missed samples
-  Columns are per pool: a replaced worker stays in its pool's column, web gardens are summed,
-  blank means no worker. A pool that appears mid-session is added by rewriting the file once.
+  Columns are per pool: a replaced worker stays in its pool's column, web gardens are summed
+  (HTTP 500 % takes the highest worker), blank means no worker. In counter paths, ( and ) in a
+  pool name are written [ and ], and / \ # as _, as Windows does for its own instances. A pool that appears mid-session is added by rewriting the file once.
 
   Open it: perfmon.msc > View Log Data > Log files > Add (type CSV) > Data > Add. It also
   works with relog and tools that read PerfMon CSV.
@@ -76,7 +86,11 @@ Export
 Mock
 ----
   --mock simulates an IIS server (default 64 cores, 100 pools) with varying load and the
-  occasional recycle. Sessions are labeled MOCK in the title, log folder and export.
+  occasional recycle. chaos=1 to 10 adds trouble in proportion: CPU spikes, memory leaks
+  (native or managed) that end in a crash, crashes with a gap before the pool restarts, more
+  recycles, and bursts of HTTP 500s. Every third pool also gets an odd name (spaces,
+  underscores, parentheses, non-ASCII, very long). The title badge shows the level, e.g.
+  MOCK · chaos 5. Sessions are labeled MOCK in the title, log folder and export.
 
 How it works
 ------------

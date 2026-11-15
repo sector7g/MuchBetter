@@ -42,9 +42,18 @@ namespace S7G.mbpm.Core
                     allCores = oneCore.Value / cores;
                 }
 
+                // Native estimate: commit not held by the .NET GC. Includes the CLR's own non-GC memory
+                // (JIT code, loader heaps, thread stacks), so it's an upper bound on native allocations.
+                double? nativeMB = process.Commit.HasValue && process.GcCommittedBytes.HasValue
+                    ? Math.Max(0.0, process.Commit.Value - process.GcCommittedBytes.Value) / BytesPerMB
+                    : (double?)null;
+
                 rows.Add(new PoolRow
                 {
                     Pool = pool,
+                    GcMB = ToMB(process.GcHeapBytes),
+                    NativeMB = nativeMB,
+                    Http500Percent = process.Http500Percent,
                     Pid = process.Pid,
                     CpuOne = oneCore,
                     CpuAll = allCores,

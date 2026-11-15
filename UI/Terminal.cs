@@ -1,5 +1,6 @@
 ﻿// (c) 2017-2026 Sector 7G Consulting LLC
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using S7G.mbpm.Interop;
@@ -138,9 +139,11 @@ namespace S7G.mbpm.UI
             {
                 return this;
             }
-            if (value.Length > width - Length)
+            int columns = TextWidth.Of(value);
+            if (columns > width - Length)
             {
-                value = value.Substring(0, width - Length);
+                value = TextWidth.Fit(value, width - Length);
+                columns = TextWidth.Of(value);
             }
 
             if (style != null)
@@ -152,7 +155,7 @@ namespace S7G.mbpm.UI
             {
                 text.Append(Ansi.Reset);
             }
-            Length += value.Length;
+            Length += columns;
             return this;
         }
 
@@ -193,6 +196,111 @@ namespace S7G.mbpm.UI
         public override string ToString()
         {
             return text.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Text width in terminal columns, not characters: East Asian wide and fullwidth characters
+    /// (CJK, Hangul, fullwidth forms) and most emoji take two columns; combining marks, zero-width
+    /// characters and variation selectors take none; a surrogate pair is one character.
+    /// Approximates Unicode East Asian Width, which is what Windows Terminal and conhost follow.
+    /// </summary>
+    internal static class TextWidth
+    {
+        public static int Of(string text)
+        {
+            int width = 0;
+            for (int i = 0; i < (text ?? string.Empty).Length; i += Step(text, i))
+            {
+                width += Columns(text, i);
+            }
+            return width;
+        }
+
+        /// <summary>The longest start of the text that fits in the given columns; combining marks stay with their character.</summary>
+        public static string Fit(string text, int columns)
+        {
+            if (string.IsNullOrEmpty(text) || columns <= 0)
+            {
+                return string.Empty;
+            }
+            int width = 0;
+            int i = 0;
+            while (i < text.Length)
+            {
+                int w = Columns(text, i);
+                if (width + w > columns)
+                {
+                    break;
+                }
+                width += w;
+                i += Step(text, i);
+            }
+            return text.Substring(0, i);
+        }
+
+        /// <summary>Cuts the text to the given columns with an ellipsis, padding a column a wide character couldn't fill.</summary>
+        public static string Truncate(string text, int columns)
+        {
+            text = text ?? string.Empty;
+            if (Of(text) <= columns)
+            {
+                return text;
+            }
+            string start = Fit(text, Math.Max(0, columns - 1));
+            return PadRight(start, Math.Max(0, columns - 1)) + "…";
+        }
+
+        public static string PadRight(string text, int columns)
+        {
+            int width = Of(text);
+            return width >= columns ? text : text + new string(' ', columns - width);
+        }
+
+        public static string PadLeft(string text, int columns)
+        {
+            int width = Of(text);
+            return width >= columns ? text : new string(' ', columns - width) + text;
+        }
+
+        private static int Step(string text, int i)
+        {
+            return char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]) ? 2 : 1;
+        }
+
+        private static int Columns(string text, int i)
+        {
+            int code = Step(text, i) == 2 ? char.ConvertToUtf32(text[i], text[i + 1]) : text[i];
+            if (code < 0x20 || code == 0x200B || code == 0x200C || code == 0x200D || code == 0x2060 || code == 0xFEFF)
+            {
+                return 0;
+            }
+            UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(text, i);     // surrogate-pair aware
+            if (category == UnicodeCategory.NonSpacingMark || category == UnicodeCategory.EnclosingMark
+                || category == UnicodeCategory.Format)
+            {
+                return 0;
+            }
+            return IsWide(code) ? 2 : 1;
+        }
+
+        private static bool IsWide(int c)
+        {
+            return (c >= 0x1100 && c <= 0x115F)         // Hangul Jamo initials
+                || (c >= 0x2E80 && c <= 0x303E)         // CJK radicals, punctuation
+                || (c >= 0x3041 && c <= 0x33FF)         // Hiragana, Katakana, CJK compatibility
+                || (c >= 0x3400 && c <= 0x4DBF)         // CJK extension A
+                || (c >= 0x4E00 && c <= 0x9FFF)         // CJK unified ideographs
+                || (c >= 0xA000 && c <= 0xA4CF)         // Yi
+                || (c >= 0xAC00 && c <= 0xD7A3)         // Hangul syllables
+                || (c >= 0xF900 && c <= 0xFAFF)         // CJK compatibility ideographs
+                || (c >= 0xFE30 && c <= 0xFE4F)         // CJK compatibility forms
+                || (c >= 0xFF00 && c <= 0xFF60)         // fullwidth forms
+                || (c >= 0xFFE0 && c <= 0xFFE6)
+                || (c >= 0x1F300 && c <= 0x1F64F)       // emoji: symbols, pictographs, emoticons
+                || (c >= 0x1F680 && c <= 0x1F6FF)       // emoji: transport, map
+                || (c >= 0x1F900 && c <= 0x1F9FF)       // emoji: supplemental
+                || (c >= 0x20000 && c <= 0x3FFFD);      // CJK extensions B and beyond
         }
     }
 }

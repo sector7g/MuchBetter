@@ -40,6 +40,7 @@ namespace S7G.mbpm.UI
         public double MaxDelayMs;
         public long MissedSamples;
         public bool Mock;               // --mock: labeled MOCK in the title
+        public int MockChaos;           // --mock chaos=<n>: shown in the MOCK badge when above 0
         public string ThemeName;
     }
 
@@ -134,7 +135,8 @@ namespace S7G.mbpm.UI
                 .Add("  " + Brand.Version, Ansi.Dim);
             if (m.Mock)
             {
-                line.Add("  ").Add(" " + Strings.TitleMock + " ", Ansi.MockBadge);
+                string badge = m.MockChaos > 0 ? string.Format(Strings.TitleMockChaos, m.MockChaos) : Strings.TitleMock;
+                line.Add("  ").Add(" " + badge + " ", Ansi.MockBadge);
             }
             if (m.Paused)
             {
@@ -437,6 +439,7 @@ namespace S7G.mbpm.UI
             public bool ShowUser;
             public int UserWidth;
             public bool ShowMemory;
+            public bool ShowDotNet;             // GC MB, ~ Native MB, HTTP 500 %
 
             private const int PidWidth = 10;     // "W3WP PID" plus a space
             private const int CpuWidth = 7;     // share of the whole machine, as Task Manager's Processes tab
@@ -445,14 +448,19 @@ namespace S7G.mbpm.UI
             private const int CommitWidth = 11;
             private const int UptimeWidth = 15;
             private const int MemoryWidth = WsWidth + PrivateWsWidth + CommitWidth;
+            private const int GcWidth = 8;
+            private const int NativeWidth = 13;
+            private const int Http500Width = 12;
+            private const int DotNetWidth = GcWidth + NativeWidth + Http500Width;
             private const int MinUserWidth = 12;
             private const int MaxUserWidth = 40;
 
-            // Drops, in order, the USER column and the memory columns when the window is narrow.
+            // Drops, in order, the USER column, the .NET and HTTP 500 columns and the memory columns
+            // when the window is narrow.
             public static Columns Fit(ViewModel m, int w)
             {
                 var c = new Columns();
-                int longest = m.Rows.Count == 0 ? 0 : m.Rows.Max(r => r.Pool.Length);
+                int longest = m.Rows.Count == 0 ? 0 : m.Rows.Max(r => TextWidth.Of(r.Pool));
                 c.PoolWidth = Math.Max(14, Math.Min(34, longest + 2));
 
                 int available = w - (1 + c.PoolWidth + PidWidth + CpuWidth + UptimeWidth);
@@ -461,10 +469,18 @@ namespace S7G.mbpm.UI
                 {
                     available -= MemoryWidth;
                 }
+                c.ShowDotNet = c.ShowMemory && available >= DotNetWidth;
+                if (c.ShowDotNet)
+                {
+                    available -= DotNetWidth;
+                }
 
-                int longestUser = m.Rows.Count == 0 ? 0 : m.Rows.Max(r => (r.User ?? "-").Length);
-                c.UserWidth = Math.Min(Math.Min(MaxUserWidth, Math.Max(Strings.ColUser.Length, longestUser)), available - 2);
-                c.ShowUser = c.UserWidth >= MinUserWidth;
+                // Shown whenever it fits, even if every value is "-" (not elevated), so it's clear the
+                // accounts couldn't be read rather than left out. Long names are cut, down to MinUserWidth.
+                int longestUser = m.Rows.Count == 0 ? 0 : m.Rows.Max(r => TextWidth.Of(r.User ?? "-"));
+                int wanted = Math.Min(MaxUserWidth, Math.Max(Strings.ColUser.Length, longestUser));
+                c.UserWidth = Math.Min(wanted, available - 2);
+                c.ShowUser = c.UserWidth == wanted || c.UserWidth >= MinUserWidth;
                 return c;
             }
 
@@ -484,6 +500,13 @@ namespace S7G.mbpm.UI
                         .Append(Strings.ColPrivateWs.PadLeft(PrivateWsWidth))
                         .Append(Strings.ColCommit.PadLeft(CommitWidth));
                 }
+                if (ShowDotNet)
+                {
+                    string native = m.Ascii ? Strings.ColNative.Replace("≈", "~") : Strings.ColNative;
+                    text.Append(Strings.ColGc.PadLeft(GcWidth))
+                        .Append(native.PadLeft(NativeWidth))
+                        .Append(Strings.ColHttp500.PadLeft(Http500Width));
+                }
                 text.Append("  ").Append(Strings.ColUptime);
                 return new LineBuilder(w).Add(text.ToString(), Ansi.HeaderBar).Fill(Ansi.HeaderBar);
             }
@@ -494,7 +517,7 @@ namespace S7G.mbpm.UI
                 string baseStyle = selected ? Ansi.Selected : null;
                 Func<string, string> style = s => selected ? Ansi.Selected : s;
 
-                line.Add(" " + Truncate(row.Pool, PoolWidth - 1).PadRight(PoolWidth), baseStyle);
+                line.Add(" " + TextWidth.PadRight(TextWidth.Truncate(row.Pool, PoolWidth - 1), PoolWidth), baseStyle);
                 line.Add(row.Pid.ToString(CultureInfo.InvariantCulture).PadLeft(PidWidth - 1) + " ", style(Ansi.Dim));
 
                 if (row.NotInSample)
@@ -508,13 +531,20 @@ namespace S7G.mbpm.UI
                 if (ShowUser)
                 {
                     line.Add("  ", baseStyle);
-                    line.Add(Truncate(row.User ?? "-", UserWidth).PadRight(UserWidth), style(Ansi.Cyan));
+                    line.Add(TextWidth.PadRight(TextWidth.Truncate(row.User ?? "-", UserWidth), UserWidth), style(Ansi.Cyan));
                 }
                 if (ShowMemory)
                 {
                     line.Add(Number(row.WorkingSetMB, "0").PadLeft(WsWidth), baseStyle);
                     line.Add(Number(row.PrivateWorkingSetMB, "0").PadLeft(PrivateWsWidth), baseStyle);
                     line.Add(Number(row.CommitMB, "0").PadLeft(CommitWidth), baseStyle);
+                }
+                if (ShowDotNet)
+                {
+                    line.Add(Number(row.GcMB, "0").PadLeft(GcWidth), baseStyle);
+                    line.Add(Number(row.NativeMB, "0").PadLeft(NativeWidth), baseStyle);
+                    line.Add(Number(row.Http500Percent, "0.0").PadLeft(Http500Width),
+                        style(row.Http500Percent > 0 ? Ansi.Red : Ansi.Dim));
                 }
                 line.Add("  " + Uptime(row.Uptime), style(Ansi.Dim));
 
@@ -574,13 +604,9 @@ namespace S7G.mbpm.UI
             // Themes, listed from Theme.All so the help always matches what F3 cycles through.
             text.Add(string.Empty);
             text.Add(" " + Strings.HelpThemesHeading);
-            int nameWidth = Theme.All.Max(t => t.Name.Length) + 2;
             foreach (Theme theme in Theme.All)
             {
-                string font = theme.FontFace == null ? string.Empty
-                    : string.Format(CultureInfo.InvariantCulture, " ({0} {1})", theme.FontFace, theme.FontSize);
-                text.Add("   " + theme.Name.PadRight(nameWidth) + theme.Description + font
-                    + (theme == Theme.Current ? "  " + Strings.HelpThemeCurrent : string.Empty));
+                text.Add("   " + theme.Name + (theme == Theme.Current ? "  " + Strings.HelpThemeCurrent : string.Empty));
             }
             text.Add("   " + Strings.HelpThemesFontNote);
             text.Add(string.Empty);
@@ -703,11 +729,6 @@ namespace S7G.mbpm.UI
         private static string Gigabytes(double megabytes)
         {
             return (megabytes / 1024).ToString("0.0", CultureInfo.InvariantCulture) + "G";
-        }
-
-        private static string Truncate(string text, int length)
-        {
-            return text.Length <= length ? text : text.Substring(0, Math.Max(0, length - 1)) + "…";
         }
     }
 }

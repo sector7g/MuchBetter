@@ -30,6 +30,8 @@ namespace S7G.mbpm
         public bool Mock;
         public int MockCores = MaxMockCores;
         public int MockPools = MaxMockPools;
+        public int MockChaos;               // 0 (calm) to MaxMockChaos
+        public const int MaxMockChaos = 10;
         public const int MaxMockCores = 64;
         public const int MaxMockPools = 100;
 
@@ -157,7 +159,7 @@ namespace S7G.mbpm
             return options;
         }
 
-        // "cores=8,pools=20": either or both, in any order.
+        // "cores=8,pools=20,chaos=5": any of them, in any order.
         private static void ParseMockSettings(Options options, string value)
         {
             foreach (string part in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
@@ -168,23 +170,26 @@ namespace S7G.mbpm
                 switch (name)
                 {
                     case "cores":
-                        options.MockCores = ParseRange(number, name, MaxMockCores);
+                        options.MockCores = ParseRange(number, name, 1, MaxMockCores);
                         break;
                     case "pools":
-                        options.MockPools = ParseRange(number, name, MaxMockPools);
+                        options.MockPools = ParseRange(number, name, 1, MaxMockPools);
+                        break;
+                    case "chaos":
+                        options.MockChaos = ParseRange(number, name, 0, MaxMockChaos);
                         break;
                     default:
-                        throw new ArgumentException(string.Format(Strings.ErrMockSetting, part.Trim(), MaxMockCores, MaxMockPools));
+                        throw new ArgumentException(string.Format(Strings.ErrMockSetting, part.Trim(), MaxMockCores, MaxMockPools, MaxMockChaos));
                 }
             }
         }
 
-        private static int ParseRange(string value, string name, int max)
+        private static int ParseRange(string value, string name, int min, int max)
         {
             int result;
-            if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result) || result < 1 || result > max)
+            if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result) || result < min || result > max)
             {
-                throw new ArgumentException(string.Format(Strings.ErrMockRange, name, max, value));
+                throw new ArgumentException(string.Format(Strings.ErrMockRange, name, min, max, value));
             }
             return result;
         }

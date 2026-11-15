@@ -72,17 +72,21 @@ namespace S7G.mbpm.Logging
                 AddPools(added);
             }
 
-            // Web garden: a pool's workers are summed, as in "mbpm export".
+            // Web garden: a pool's workers are combined, as in "mbpm export".
             var sums = new double?[pools.Count, Exporter.PoolCounters.Length];
             foreach (PoolRow row in sampled)
             {
                 int p = pools.FindIndex(x => x.Equals(row.Pool, StringComparison.OrdinalIgnoreCase));
-                double?[] values = { row.CpuOne, row.CpuAll, row.WorkingSetMB, row.PrivateWorkingSetMB, row.CommitMB };
+                double?[] values =
+                {
+                    row.CpuOne, row.CpuAll, row.WorkingSetMB, row.PrivateWorkingSetMB, row.CommitMB,
+                    row.GcMB, row.NativeMB, row.Http500Percent,
+                };
                 for (int k = 0; k < values.Length; k++)
                 {
                     if (values[k].HasValue)
                     {
-                        sums[p, k] = (sums[p, k] ?? 0) + Round(values[k].Value);
+                        Exporter.Combine(sums, p, k, Round(values[k].Value));
                     }
                 }
             }
