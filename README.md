@@ -7,9 +7,9 @@
 
 Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. MBPM shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
 
-[Key benefits](#key-benefits) · [Background](#background) · [Quick start](#quick-start) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
-
 ![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
+
+[Key benefits](#key-benefits) · [Background](#background) · [Quick start](#quick-start) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
 
 ## Key benefits
 
