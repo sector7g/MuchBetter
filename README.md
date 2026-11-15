@@ -1,15 +1,15 @@
 # MBPM  ·  A Much Better appPool Monitor
 
-[![build](https://github.com/sector7g/MuchBetter/actions/workflows/build.yml/badge.svg)](https://github.com/sector7g/MuchBetter/actions/workflows/build.yml)
+[![build](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml/badge.svg)](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Live CPU and memory per IIS application pool, htop-style, logged as you watch.**
 
 Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. MBPM shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
 
-![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
-
 [Key benefits](#key-benefits) · [Background](#background) · [Quick start](#quick-start) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
+
+![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
 
 ## Key benefits
 
