@@ -8,7 +8,7 @@
 
 Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. MBPM shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
 
-[Key benefits](#key-benefits) · [Read-only by design](#read-only-by-design) · [Background](#background) · [Quick start](#quick-start) · [Columns](#columns) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
+[Key benefits](#key-benefits) · [Read-only by design](#read-only-by-design) · [Background](#background) · [Quick start](#quick-start) · [Columns](#columns) · [Mock & chaos](#mock--chaos) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
 
 ![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
 
@@ -30,9 +30,20 @@ Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... 
 
 ## Background
 
-Windows can't attribute counters to an app pool on its own: `Process` instances carry no pool name, are renumbered whenever a worker starts or exits, and a data collector set only captures the workers present when it starts. The usual workaround logs `\Process(w3wp*)\ID Process`, maps PIDs to pools (WMI, `appcmd`, or IIS's `W3SVC_W3WP` counters named `PID_PoolName`) and merges after the fact ([Microsoft](https://learn.microsoft.com/en-us/archive/blogs/dpaulexchange/tips-and-tricks-how-to-determine-which-w3wp-exe-process-belongs-to-which-application-pool), [duplicate instance names](https://learn.microsoft.com/en-ie/Windows/Win32/perfctrs/handling-duplicate-instance-names)). MBPM does that join live, every sample.
+Which `w3wp.exe` serves which app pool? A [Microsoft support post](https://learn.microsoft.com/en-us/archive/blogs/dpaulexchange/tips-and-tricks-how-to-determine-which-w3wp-exe-process-belongs-to-which-application-pool) gives the two usual answers:
 
-**History:** `bpm`, a PowerShell script that polled counters and WMI, skewed the numbers under load. `ebpm`, in C#, sampled with a data collector set and merged offline. `mbpm` reads PDH directly with IIS's pool names in the same sample, and logs per pool as it goes.
+- **Task Manager:** add the Command Line column and read each `w3wp.exe`'s app pool there. Process Explorer and similar tools work the same way.
+- **Performance Monitor:** collect `\Process(*)\ID Process` and `\W3SVC_W3WP(*)\*`, find the PID of the `w3wp#N` instance in question, then the `W3SVC_W3WP` instance carrying that PID, which is named after the pool.
+
+That's fine for a live look, but it doesn't hold up after the fact:
+
+- **Task Manager, Process Explorer and the like don't log.** Once the moment has passed, so has the answer.
+- **Performance counters do log, but not the pool.** A `\Process` log identifies workers only as `w3wp#N`, an index Windows reassigns whenever a worker starts or exits ([duplicate instance names](https://learn.microsoft.com/en-ie/Windows/Win32/perfctrs/handling-duplicate-instance-names)), and a PID that's long gone by the time anyone reads the log. Matching them to pools is a manual job, instance by instance and time window by time window; the post itself warns to check the PID didn't change in between.
+- **A data collector set only captures the workers present when it starts,** so workers started later aren't logged at all.
+
+MBPM does that join live, every sample, and logs by pool name.
+
+**History:** `bpm` ("Better appPool Monitor"), a PowerShell script that polled counters and WMI, skewed the numbers under load. `ebpm` ("Even Better...", in C#, sampled with a data collector set and merged offline. `mbpm` ("Much Better.") reads PDH directly with IIS's pool names in the same sample, and logs per pool as it goes.
 
 ## Quick start
 
@@ -74,6 +85,35 @@ The .NET columns show "-" for pools without .NET ("No Managed Code"); they're ma
 - **GC MB and Commit MB rising together** points to a managed leak: objects the application keeps referencing.
 
 The export logs these columns per pool under `Much Better App Pool(<pool>)`, as "GC MB", "Native MB (approx)" and "HTTP 500 %". A web garden's workers are summed, except HTTP 500 %, where the highest worker's value is kept. In counter paths, `(` and `)` in a pool name are written `[` and `]`, and `/`, `\` and `#` as `_`, as Windows does for its own instance names.
+
+## Mock & chaos
+
+`--mock` runs MBPM against a simulated IIS server instead of real counters: the same screen, logging and export, with no IIS and no admin rights needed. Use it to try MBPM out, demo it, or test changes.
+
+```text
+mbpm --mock [cores=<n>][,pools=<n>][,chaos=<n>]
+```
+
+| Setting | Range | Default |
+| --- | --- | --- |
+| `cores` | 1–64 | 64 |
+| `pools` | 1–100 | 100 |
+| `chaos` | 0–10 | 0 |
+
+At chaos 0 the server is calm: CPU and memory wander, and a worker is recycled now and then. Each step up adds more of what goes wrong on real servers:
+
+| Trouble | What you'll see |
+| --- | --- |
+| CPU spikes | A worker jumps to 1–4 cores' worth of CPU for 5–30 s. |
+| Memory leaks | A worker grows 5–40 MB/s, then crashes at 1.5–3 GB. Native leaks raise ≈ Native MB while GC MB stays flat; managed leaks raise GC MB with Commit MB. |
+| Crashes | A worker vanishes with no replacement for 2–10 s, then a new one starts. |
+| Recycles | Overlapped recycles, up to 31× as often at chaos 10. |
+| HTTP 500 bursts | A worker returns 5–40 % 500s for 10–60 s. |
+| Odd pool names | Every third pool gets a name that tests display and export: spaces, underscores, parentheses, non-ASCII and double-width characters, very long names. |
+
+![MBPM in mock mode at chaos 10: 32 cores in the Cores view, 100 pools with odd names](docs/screens/mock01.png)
+
+Mock sessions can't pass for real data: the title shows a red **MOCK** badge (with the chaos level, e.g. **MOCK · chaos 10**), the logs go to a `MOCK` folder, and the export's counter paths start with `\\MOCK\`.
 
 ## Output
 
