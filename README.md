@@ -1,4 +1,4 @@
-# MBPM  ·  A Much Better appPool Monitor
+# A Much Better appPool Monitor
 
 [![build](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml/badge.svg)](https://github.com/sector7g/MuchBetter/actions/workflows/build.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -6,11 +6,11 @@
 
 **Live CPU and memory per IIS application pool, htop-style, logged as you watch.**
 
-Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. MBPM shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
+Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... with no hint of which app pool each serves. Much Better shows CPU and memory per app pool, live in the console, and logs the same data as a PerfMon log.
 
 [Key benefits](#key-benefits) · [Read-only by design](#read-only-by-design) · [Background](#background) · [Quick start](#quick-start) · [Columns](#columns) · [Mock & chaos](#mock--chaos) · [Output](#output) · [Requirements](#requirements) · [Building](#building) · [License](#license)
 
-![MBPM monitoring 20 IIS app pools](docs/screens/live01.png)
+![Much Better monitoring 20 IIS app pools](docs/screens/live01.png)
 
 ## Key benefits
 
@@ -18,15 +18,15 @@ Performance Monitor shows IIS worker processes as `w3wp`, `w3wp#1`, `w3wp#2`... 
 >
 > **2. Right as workers come and go.** PIDs are joined to pools in the same sample as the figures, so renumbered `w3wp#n` instances are never misattributed. Recycled workers stay in their pool's column; web gardens are summed.
 >
-> **3. Read-only: it changes nothing on the server.** Apart from writing its own log files, MBPM only reads. One executable, nothing installed, no control over IIS. See [Read-only by design](#read-only-by-design).
+> **3. Read-only: it changes nothing on the server.** Apart from writing its own log files, Much Better only reads. One executable, nothing installed, no control over IIS. See [Read-only by design](#read-only-by-design).
 >
 > **4. Logged live, like a data collector set.** One row per second, flushed as it goes; a crash loses nothing already written.
 >
-> **5. Low overhead, and honest about it.** One counter query per sample. MBPM's own CPU, sample delay and missed samples are shown and logged.
+> **5. Low overhead, and honest about it.** One counter query per sample. Much Better's own CPU, sample delay and missed samples are shown and logged.
 
 ## Read-only by design
 
-**Apart from writing its log files, MBPM changes nothing on the system.** It reads performance counters, and WMI and process tokens for pool names and accounts. It installs nothing, registers no counters, changes no configuration, and provides no means to stop, start, kill, or recycle pools.
+**Apart from writing its log files, Much Better changes nothing on the system.** It reads performance counters, and WMI and process tokens for pool names and accounts. It installs nothing, registers no counters, changes no configuration, and provides no means to stop, start, kill, or recycle pools.
 
 ## Background
 
@@ -41,7 +41,7 @@ That's fine for a live look, but it doesn't hold up after the fact:
 - **Performance counters do log, but not the pool.** A `\Process` log identifies workers only as `w3wp#N`, an index Windows reassigns whenever a worker starts or exits ([duplicate instance names](https://learn.microsoft.com/en-ie/Windows/Win32/perfctrs/handling-duplicate-instance-names)), and a PID that's long gone by the time anyone reads the log. Matching them to pools is a manual job, instance by instance and time window by time window; the post itself warns to check the PID didn't change in between.
 - **A data collector set only captures the workers present when it starts,** so workers started later aren't logged at all.
 
-MBPM does that join live, every sample, and logs by pool name.
+Much Better does that join live, every sample, and logs by pool name.
 
 **History:** `bpm` ("**B**etter app**P**ool **M**onitor"), a PowerShell script that polled counters and WMI, skewed the numbers under load. `ebpm` ("**E**ven **B**etter..."), in C#, sampled with a data collector set and merged offline. `mbpm` ("**M**uch **B**etter.") reads PDH directly with IIS's pool names in the same sample, and logs per pool as it goes.
 
@@ -88,7 +88,7 @@ The export logs these columns per pool under `Much Better App Pool(<pool>)`, as 
 
 ## Mock & chaos
 
-`--mock` runs MBPM against a simulated IIS server instead of real counters: the same screen, logging and export, with no IIS and no admin rights needed. Use it to try MBPM out, demo it, or test changes.
+`--mock` runs Much Better against a simulated IIS server instead of real counters: the same screen, logging and export, with no IIS and no admin rights needed. Use it to try Much Better out, demo it, or test changes.
 
 ```text
 mbpm --mock [cores=<n>][,pools=<n>][,chaos=<n>]
@@ -111,7 +111,7 @@ At chaos 0 the server is calm: CPU and memory wander, and a worker is recycled n
 | HTTP 500 bursts | A worker returns 5–40 % 500s for 10–60 s. |
 | Odd pool names | Every third pool gets a name that tests display and export: spaces, underscores, parentheses, non-ASCII and double-width characters, very long names. |
 
-![MBPM in mock mode at chaos 10: 32 cores in the Cores view, 100 pools with odd names](docs/screens/mock01.png)
+![Much Better in mock mode at chaos 10: 32 cores in the Cores view, 100 pools with odd names](docs/screens/mock01.png)
 
 Mock sessions can't pass for real data: the title shows a red **MOCK** badge (with the chaos level, e.g. **MOCK · chaos 10**), the logs go to a `MOCK` folder, and the export's counter paths start with `\\MOCK\`.
 
@@ -128,11 +128,11 @@ Each run writes `%LOCALAPPDATA%\Sector 7G\mbpm\<machine>\<yyyyMMdd-HHmmss>\`:
 
 ## Requirements
 
-Windows with IIS, .NET Framework 4.8, a VT-capable console (Windows 10+; Windows Terminal recommended). Run elevated on the IIS server; MBPM monitors only the machine it runs on.
+Windows with IIS, .NET Framework 4.8, a VT-capable console (Windows 10+; Windows Terminal recommended). Run elevated on the IIS server; Much Better monitors only the machine it runs on.
 
 ### Without elevation
 
-MBPM still runs, but some values belong to other accounts' processes and can't be read:
+Much Better still runs, but some values belong to other accounts' processes and can't be read:
 
 | What | Not elevated | Why |
 | --- | --- | --- |
